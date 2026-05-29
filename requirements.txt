@@ -1,0 +1,43 @@
+# ============================================================
+# Requirements — LSTM Short Text Classification
+# Python 3.10+
+# ============================================================
+
+# ── Deep learning ────────────────────────────────────────────
+# PyTorch with CUDA 12.x support (RTX 5070 / Blackwell)
+# Install via: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+torch>=2.7.0
+torchvision>=0.22.0
+torchaudio>=2.7.0
+
+# ── Transformers (XLM-RoBERTa) ───────────────────────────────
+transformers>=4.44.0
+tokenizers>=0.19.0
+accelerate>=0.33.0
+
+# ── Machine learning utilities ───────────────────────────────
+scikit-learn>=1.5.0
+numpy>=1.26.0
+scipy>=1.13.0
+
+# ── Data processing ──────────────────────────────────────────
+pandas>=2.2.0
+openpyxl>=3.1.0      # xlsx support for pd.read_excel()
+
+# ── Visualisation ────────────────────────────────────────────
+matplotlib>=3.9.0
+seaborn>=0.13.0
+
+# ── Configuration ────────────────────────────────────────────
+pyyaml>=6.0.0        # YAML config file parsing
+
+# ── NLP utilities ────────────────────────────────────────────
+regex>=2024.5.15
+emoji>=2.12.0        # emoji pattern matching in social features
+
+# ── Progress bars ────────────────────────────────────────────
+tqdm>=4.66.0
+
+# ── Optional: Jupyter notebook ───────────────────────────────
+jupyter>=1.0.0
+ipykernel>=6.29.0

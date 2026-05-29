@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ML artefacts — large files, do not commit
+outputs/models/*.pt
+outputs/models/*.pkl
+outputs/models/xlmr_tokenizer/
+outputs/models/fusion_tokenizer/
+data/processed/*.csv
+data/processed/*.pkl
+data/processed/meta.json
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE
+.vscode/settings.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+
+# Secrets
+.env
+secrets.yaml
+
+# Build artefacts
+project.zip
+*.zip

@@ -1,0 +1,78 @@
+# ============================================================
+# configs/config.yaml
+# Hyperparameter configuration for:
+#   "Deep Learning LSTM for Vietnamese Short Text Classification"
+# ============================================================
+
+data:
+  raw_path: "data/raw/dataset.xlsx"
+  processed_dir: "data/processed"
+  text_col: "Text"
+  label_col: "Mã nhãn"
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  random_seed: 42
+
+labels:
+  codes: ["ANG", "DIS", "FEA", "JOY", "NEU", "SAD", "SUR"]
+  names:
+    ANG: "Giận dữ"
+    DIS: "Ghê tởm"
+    FEA: "Sợ hãi"
+    JOY: "Hạnh phúc"
+    NEU: "Trung tính"
+    SAD: "Buồn bã"
+    SUR: "Ngạc nhiên"
+
+preprocessing:
+  min_word_freq: 2
+  max_vocab_size: 30000
+
+models:
+  # ── Baseline: TF-IDF + DNN ──────────────────────────────────
+  dnn:
+    hidden_dims: [512, 256, 128]
+    dropout: 0.3
+    epochs: 30
+    batch_size: 64
+    lr: 1.0e-3
+    weight_decay: 1.0e-4
+    tfidf:
+      max_features: 10868
+      ngram_range: [1, 2]
+      sublinear_tf: true
+
+  # ── Proposed: Bidirectional LSTM + Attention ─────────────────
+  lstm:
+    embed_dim: 128
+    hidden_size: 256
+    num_layers: 2
+    bidirectional: true
+    dropout: 0.3
+    use_attention: true
+    max_len: 100
+    epochs: 30
+    batch_size: 64
+    lr: 1.0e-3
+    weight_decay: 1.0e-4
+
+  # ── Comparison: XLM-RoBERTa (upper-bound) ───────────────────
+  xlmr:
+    model_name: "xlm-roberta-base"
+    max_len: 128
+    batch_size: 16
+    epochs: 10
+    lr: 2.0e-5
+    warmup_ratio: 0.1
+    weight_decay: 0.01
+    dropout: 0.1
+
+training:
+  early_stopping_patience: 5
+
+outputs:
+  models_dir: "outputs/models"
+  logs_dir: "outputs/logs"
+  figures_dir: "outputs/figures"
+  reports_dir: "outputs/reports"
