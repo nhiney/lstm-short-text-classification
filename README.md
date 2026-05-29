@@ -224,17 +224,31 @@ text_norm → XLM-RoBERTa tokenizer
 
 ## Kết quả thực nghiệm
 
-*(Kết quả sau khi train đầy đủ)*
-
 | Mô hình        | Accuracy | Precision | Recall | F1     | Params   | Inf. (ms) |
 |----------------|----------|-----------|--------|--------|----------|-----------|
-| TF-IDF + DNN   | ~0.65    | ~0.64     | ~0.65  | ~0.64  | ~5.6M    | ~0.1      |
-| **BiLSTM+Attn**| **~0.76**| **~0.75** |**~0.76**|**~0.75**|**~8.2M**|**~0.5**  |
-| XLM-RoBERTa    | ~0.83    | ~0.82     | ~0.83  | ~0.82  | ~279M    | ~25       |
+| DNN+TF-IDF     |   79.95% |    80.76% | 79.95% | 80.13% |    ~5.7M |      ~0.0 |
+| BiLSTM **★**   |   77.51% |    79.70% | 77.51% | 77.63% |    ~2.9M |      ~0.1 |
+| XLM-R          |   82.89% |    83.42% | 82.89% | 82.88% |  ~278.0M |      ~7.2 |
 
-> **Kết luận**: BiLSTM cải thiện đáng kể so với DNN (+11% accuracy) với chi phí tính toán thấp, trong khi XLM-RoBERTa đạt kết quả tốt nhất nhờ pre-training đa ngôn ngữ.
+### Ablation Study
 
----
+| Variant | Accuracy | F1 | Params |
+|---------|----------|----|--------|
+| LSTM (uni, no-attn) | 76.53% | 76.50% | 1,144,455 |
+| BiLSTM (no-attn) | 78.48% | 78.35% | 2,655,879 |
+| BiLSTM + Attention (proposed) ★ | 78.00% | 77.81% | 2,919,047 |
+
+### Per-class F1 — BiLSTM+Attention
+
+| Nhãn | Tên | F1 |
+|------|-----|----|
+| FEA | Sợ hãi | 94.12% |
+| SUR | Ngạc nhiên | 83.78% |
+| ANG | Giận dữ | 83.17% |
+| JOY | Hạnh phúc | 81.86% |
+| NEU | Trung tính | 70.07% |
+| DIS | Ghê tởm | 66.67% |
+| SAD | Buồn bã | 65.22% |
 
 ## Cách chạy
 

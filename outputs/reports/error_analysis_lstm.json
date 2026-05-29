@@ -1,0 +1,419 @@
+{
+  "model": "lstm",
+  "total_test": 409,
+  "total_errors": 92,
+  "error_rate": 0.2249,
+  "per_class_error_rate": {
+    "ANG": 0.125,
+    "DIS": 0.2692,
+    "FEA": 0.0244,
+    "JOY": 0.2281,
+    "NEU": 0.1579,
+    "SAD": 0.4545,
+    "SUR": 0.2619
+  },
+  "top_confusion_pairs": [
+    [
+      "SAD → NEU",
+      10
+    ],
+    [
+      "JOY → NEU",
+      9
+    ],
+    [
+      "JOY → DIS",
+      8
+    ],
+    [
+      "SAD → DIS",
+      6
+    ],
+    [
+      "DIS → NEU",
+      6
+    ],
+    [
+      "NEU → JOY",
+      5
+    ],
+    [
+      "JOY → ANG",
+      5
+    ],
+    [
+      "SAD → JOY",
+      5
+    ],
+    [
+      "ANG → DIS",
+      5
+    ],
+    [
+      "SUR → NEU",
+      5
+    ]
+  ],
+  "top_errors": [
+    {
+      "text_raw": "Ngồi xem lại chat cũ, nhớ người đó quá, mà giờ không còn gì nữa",
+      "text_norm": "ngồi xem lại chat cũ nhớ người đó quá mà giờ không còn gì nữa",
+      "true_label": "SAD",
+      "true_name": "Buồn bã",
+      "pred_label": "DIS",
+      "pred_name": "Ghê tởm",
+      "confidence": 0.9605,
+      "probabilities": {
+        "ANG": 0.0048,
+        "DIS": 0.9605,
+        "FEA": 0.002,
+        "JOY": 0.0023,
+        "NEU": 0.0026,
+        "SAD": 0.0246,
+        "SUR": 0.0033
+      }
+    },
+    {
+      "text_raw": "em đỗ 6 trường đại học ở mỹ , còn hàng trăm thằng đổ em luôn rồi đó , em biết không . trong đó có anh 🤪",
+      "text_norm": "em đỗ 6 trường đại học ở mỹ còn hàng trăm thằng đổ em luôn rồi đó em biết không trong đó có anh",
+      "true_label": "JOY",
+      "true_name": "Hạnh phúc",
+      "pred_label": "DIS",
+      "pred_name": "Ghê tởm",
+      "confidence": 0.9592,
+      "probabilities": {
+        "ANG": 0.0073,
+        "DIS": 0.9592,
+        "FEA": 0.0014,
+        "JOY": 0.004,
+        "NEU": 0.0032,
+        "SAD": 0.0223,
+        "SUR": 0.0026
+      }
+    },
+    {
+      "text_raw": "Mấy tuần nay ăn không ngon, ngủ không yên, cứ lo vẩn vơ",
+      "text_norm": "mấy tuần nay ăn không ngon ngủ không yên cứ lo vẩn vơ",
+      "true_label": "SAD",
+      "true_name": "Buồn bã",
+      "pred_label": "FEA",
+      "pred_name": "Sợ hãi",
+      "confidence": 0.9358,
+      "probabilities": {
+        "ANG": 0.0232,
+        "DIS": 0.002,
+        "FEA": 0.9358,
+        "JOY": 0.0026,
+        "NEU": 0.0085,
+        "SAD": 0.0251,
+        "SUR": 0.0027
+      }
+    },
+    {
+      "text_raw": "Mấy tuần nay ăn k ngon, ngủ k yên, cứ lo vẩn vơ",
+      "text_norm": "mấy tuần nay ăn không ngon ngủ không yên cứ lo vẩn vơ",
+      "true_label": "SAD",
+      "true_name": "Buồn bã",
+      "pred_label": "FEA",
+      "pred_name": "Sợ hãi",
+      "confidence": 0.9358,
+      "probabilities": {
+        "ANG": 0.0232,
+        "DIS": 0.002,
+        "FEA": 0.9358,
+        "JOY": 0.0026,
+        "NEU": 0.0085,
+        "SAD": 0.0251,
+        "SUR": 0.0027
+      }
+    },
+    {
+      "text_raw": "per dạo này ít tung tăng hơn xưa nên hơi trầm cảm dồi chăng 😳",
+      "text_norm": "per dạo này ít tung tăng hơn xưa nên hơi trầm cảm dồi chăng",
+      "true_label": "NEU",
+      "true_name": "Trung tính",
+      "pred_label": "JOY",
+      "pred_name": "Hạnh phúc",
+      "confidence": 0.934,
+      "probabilities": {
+        "ANG": 0.0069,
+        "DIS": 0.0078,
+        "FEA": 0.0024,
+        "JOY": 0.934,
+        "NEU": 0.0273,
+        "SAD": 0.0042,
+        "SUR": 0.0173
+      }
+    },
+    {
+      "text_raw": "thích mấy đứa này",
+      "text_norm": "thích mấy đứa này",
+      "true_label": "JOY",
+      "true_name": "Hạnh phúc",
+      "pred_label": "ANG",
+      "pred_name": "Giận dữ",
+      "confidence": 0.9251,
+      "probabilities": {
+        "ANG": 0.9251,
+        "DIS": 0.0095,
+        "FEA": 0.003,
+        "JOY": 0.0102,
+        "NEU": 0.0467,
+        "SAD": 0.0019,
+        "SUR": 0.0036
+      }
+    },
+    {
+      "text_raw": "xuất sắc . thật sự quá đỉnh .",
+      "text_norm": "xuất sắc thật sự quá đỉnh",
+      "true_label": "JOY",
+      "true_name": "Hạnh phúc",
+      "pred_label": "ANG",
+      "pred_name": "Giận dữ",
+      "confidence": 0.9095,
+      "probabilities": {
+        "ANG": 0.9095,
+        "DIS": 0.0355,
+        "FEA": 0.0011,
+        "JOY": 0.0222,
+        "NEU": 0.002,
+        "SAD": 0.003,
+        "SUR": 0.0267
+      }
+    },
+    {
+      "text_raw": "cả thế giới thấy hay trừ tao",
+      "text_norm": "cả thế giới thấy hay trừ tao",
+      "true_label": "NEU",
+      "true_name": "Trung tính",
+      "pred_label": "JOY",
+      "pred_name": "Hạnh phúc",
+      "confidence": 0.9015,
+      "probabilities": {
+        "ANG": 0.0289,
+        "DIS": 0.0124,
+        "FEA": 0.0033,
+        "JOY": 0.9015,
+        "NEU": 0.0173,
+        "SAD": 0.0297,
+        "SUR": 0.0069
+      }
+    },
+    {
+      "text_raw": "Hum nay mk đc phần thưởng bất ngờ từ cty, xúc động k nói đc j 🥹",
+      "text_norm": "hum nay mình được phần thưởng bất ngờ từ cty xúc động không nói được gì",
+      "true_label": "JOY",
+      "true_name": "Hạnh phúc",
+      "pred_label": "SUR",
+      "pred_name": "Ngạc nhiên",
+      "confidence": 0.9011,
+      "probabilities": {
+        "ANG": 0.0018,
+        "DIS": 0.0094,
+        "FEA": 0.0006,
+        "JOY": 0.0255,
+        "NEU": 0.0141,
+        "SAD": 0.0474,
+        "SUR": 0.9011
+      }
+    },
+    {
+      "text_raw": "tôi cũng muốn được cảm thấy như vậy ??",
+      "text_norm": "tôi cũng muốn được cảm thấy như vậy",
+      "true_label": "SAD",
+      "true_name": "Buồn bã",
+      "pred_label": "JOY",
+      "pred_name": "Hạnh phúc",
+      "confidence": 0.8854,
+      "probabilities": {
+        "ANG": 0.0119,
+        "DIS": 0.0299,
+        "FEA": 0.0016,
+        "JOY": 0.8854,
+        "NEU": 0.0154,
+        "SAD": 0.0488,
+        "SUR": 0.007
+      }
+    },
+    {
+      "text_raw": "nuốt được cục tiền đó cũng hay đó ( y )",
+      "text_norm": "nuốt được cục tiền đó cũng hay đó y",
+      "true_label": "JOY",
+      "true_name": "Hạnh phúc",
+      "pred_label": "DIS",
+      "pred_name": "Ghê tởm",
+      "confidence": 0.8742,
+      "probabilities": {
+        "ANG": 0.0255,
+        "DIS": 0.8742,
+        "FEA": 0.0023,
+        "JOY": 0.0401,
+        "NEU": 0.0097,
+        "SAD": 0.0286,
+        "SUR": 0.0195
+      }
+    },
+    {
+      "text_raw": "K có ai để kể, cô đơn theo kiểu đó mới thật sự bùn",
+      "text_norm": "không có ai để kể cô đơn theo kiểu đó mới thật sự bùn",
+      "true_label": "SAD",
+      "true_name": "Buồn bã",
+      "pred_label": "ANG",
+      "pred_name": "Giận dữ",
+      "confidence": 0.8474,
+      "probabilities": {
+        "ANG": 0.8474,
+        "DIS": 0.0226,
+        "FEA": 0.0062,
+        "JOY": 0.0063,
+        "NEU": 0.0081,
+        "SAD": 0.1068,
+        "SUR": 0.0025
+      }
+    },
+    {
+      "text_raw": "thế không đạt được gì à",
+      "text_norm": "thế không đạt được gì à",
+      "true_label": "SUR",
+      "true_name": "Ngạc nhiên",
+      "pred_label": "SAD",
+      "pred_name": "Buồn bã",
+      "confidence": 0.8261,
+      "probabilities": {
+        "ANG": 0.0284,
+        "DIS": 0.0161,
+        "FEA": 0.004,
+        "JOY": 0.0121,
+        "NEU": 0.0441,
+        "SAD": 0.8261,
+        "SUR": 0.0692
+      }
+    },
+    {
+      "text_raw": "wtf luôn, sao có thể làm vậy với người khác được, disgusting",
+      "text_norm": "trời ơi luôn sao có thể làm vậy với người khác được disgusting",
+      "true_label": "ANG",
+      "true_name": "Giận dữ",
+      "pred_label": "DIS",
+      "pred_name": "Ghê tởm",
+      "confidence": 0.8144,
+      "probabilities": {
+        "ANG": 0.0405,
+        "DIS": 0.8144,
+        "FEA": 0.0014,
+        "JOY": 0.0355,
+        "NEU": 0.0425,
+        "SAD": 0.0174,
+        "SUR": 0.0483
+      }
+    },
+    {
+      "text_raw": "có đứa nào vừa coi vừa nuốt nước miếng như tao không ?",
+      "text_norm": "có đứa nào vừa coi vừa nuốt nước miếng như tao không",
+      "true_label": "JOY",
+      "true_name": "Hạnh phúc",
+      "pred_label": "NEU",
+      "pred_name": "Trung tính",
+      "confidence": 0.8029,
+      "probabilities": {
+        "ANG": 0.0169,
+        "DIS": 0.0356,
+        "FEA": 0.0147,
+        "JOY": 0.0556,
+        "NEU": 0.8029,
+        "SAD": 0.0655,
+        "SUR": 0.0088
+      }
+    },
+    {
+      "text_raw": "Đặt mục tiêu đầu năm, cuối năm check lại đạt gần hết, glow up thật",
+      "text_norm": "đặt mục tiêu đầu năm cuối năm check lại đạt gần hết glow up thật",
+      "true_label": "JOY",
+      "true_name": "Hạnh phúc",
+      "pred_label": "SAD",
+      "pred_name": "Buồn bã",
+      "confidence": 0.7574,
+      "probabilities": {
+        "ANG": 0.0986,
+        "DIS": 0.0198,
+        "FEA": 0.0261,
+        "JOY": 0.0308,
+        "NEU": 0.0616,
+        "SAD": 0.7574,
+        "SUR": 0.0058
+      }
+    },
+    {
+      "text_raw": "xàm bà cố luôn ??????",
+      "text_norm": "xàm bà cố luôn",
+      "true_label": "DIS",
+      "true_name": "Ghê tởm",
+      "pred_label": "SAD",
+      "pred_name": "Buồn bã",
+      "confidence": 0.7527,
+      "probabilities": {
+        "ANG": 0.0152,
+        "DIS": 0.0698,
+        "FEA": 0.0085,
+        "JOY": 0.1153,
+        "NEU": 0.032,
+        "SAD": 0.7527,
+        "SUR": 0.0064
+      }
+    },
+    {
+      "text_raw": "cho nghỉ viêc mói đúng sao goi là kỷ luật",
+      "text_norm": "cho nghỉ viêc mói đúng sao goi là kỷ luật",
+      "true_label": "SUR",
+      "true_name": "Ngạc nhiên",
+      "pred_label": "NEU",
+      "pred_name": "Trung tính",
+      "confidence": 0.7408,
+      "probabilities": {
+        "ANG": 0.0229,
+        "DIS": 0.1057,
+        "FEA": 0.0146,
+        "JOY": 0.0873,
+        "NEU": 0.7408,
+        "SAD": 0.0214,
+        "SUR": 0.0072
+      }
+    },
+    {
+      "text_raw": "thật ra nhiều lúc bị bố mẹ chửi không hiểu vì lí do gì và những câu chửi ấy có những từ không chấp nhận nổi",
+      "text_norm": "thật ra nhiều lúc bị bố mẹ chửi không hiểu vì lí do gì và những câu chửi ấy có những từ không chấp nhận nổi",
+      "true_label": "DIS",
+      "true_name": "Ghê tởm",
+      "pred_label": "SAD",
+      "pred_name": "Buồn bã",
+      "confidence": 0.7194,
+      "probabilities": {
+        "ANG": 0.0045,
+        "DIS": 0.1707,
+        "FEA": 0.0191,
+        "JOY": 0.0335,
+        "NEU": 0.0375,
+        "SAD": 0.7194,
+        "SUR": 0.0153
+      }
+    },
+    {
+      "text_raw": "per giỏi phết đấy mỗi tội nghịch thôi , được cái làm từ thiện nhiều .",
+      "text_norm": "per giỏi phết đấy mỗi tội nghịch thôi được cái làm từ thiện nhiều",
+      "true_label": "JOY",
+      "true_name": "Hạnh phúc",
+      "pred_label": "NEU",
+      "pred_name": "Trung tính",
+      "confidence": 0.7161,
+      "probabilities": {
+        "ANG": 0.0327,
+        "DIS": 0.0928,
+        "FEA": 0.0081,
+        "JOY": 0.0973,
+        "NEU": 0.7161,
+        "SAD": 0.0474,
+        "SUR": 0.0057
+      }
+    }
+  ]
+}
