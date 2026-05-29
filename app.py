@@ -178,6 +178,13 @@ def read_json(name):
     return json.load(open(p)) if p.exists() else {}
 
 
+def hex_rgba(hex_color: str, alpha: float = 1.0) -> str:
+    """Convert '#RRGGBB' to 'rgba(r,g,b,a)' (plotly-safe)."""
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r},{g},{b},{alpha})"
+
+
 def metric_pill(value, label, color=PRIMARY, sub=""):
     return (
         f"<div style='background:#fff;border:1px solid {LINE};border-radius:14px;"
@@ -636,7 +643,7 @@ elif page == "Kết quả & Metrics":
             c = MODEL_CLR.get(name, "#888")
             fig.add_trace(go.Scatterpolar(
                 r=v+[v[0]], theta=metrics+[metrics[0]], fill="toself", name=name,
-                line=dict(color=c, width=2.5), fillcolor=c, opacity=0.16,
+                line=dict(color=c, width=2.5), fillcolor=hex_rgba(c, 0.14),
                 marker=dict(size=6, color=c)))
         fig.update_layout(
             polar=dict(
@@ -750,7 +757,7 @@ elif page == "Ablation study":
         marker_color=bclr, text=[f"{v:.3f}" for v in accs], textposition="outside",
         textfont=dict(size=10.5,color="#334155")))
     fig.add_trace(go.Bar(name="F1", x=names, y=f1s, offsetgroup=1,
-        marker_color=[c+"80" for c in bclr], text=[f"{v:.3f}" for v in f1s],
+        marker_color=[hex_rgba(c, 0.5) for c in bclr], text=[f"{v:.3f}" for v in f1s],
         textposition="outside", textfont=dict(size=10.5,color="#334155")))
     fig.update_layout(barmode="group",
         yaxis=dict(range=[min(accs+f1s)-0.015, max(accs+f1s)+0.025], tickformat=".0%",
