@@ -1,6 +1,6 @@
 """
-app.py — Professional Streamlit demo
-Xây dựng mô hình học sâu LSTM cho phân loại văn bản ngắn tiếng Việt
+app.py — Demo ứng dụng phân loại cảm xúc văn bản ngắn tiếng Việt
+Chạy: streamlit run app.py
 """
 import json
 import sys
@@ -9,7 +9,6 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
@@ -17,952 +16,811 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Vietnamese Emotion Classifier",
+    page_title="Emotion Classifier — NLP Demo",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ── Design tokens ─────────────────────────────────────────────────────────────
-CLR = {
-    "primary":    "#1D4ED8",
-    "primary_lt": "#EFF6FF",
-    "sidebar":    "#0F172A",
-    "surface":    "#FFFFFF",
-    "bg":         "#F8FAFC",
-    "border":     "#E2E8F0",
-    "text":       "#0F172A",
-    "muted":      "#64748B",
-    "bilstm":     "#1D4ED8",
-    "dnn":        "#D97706",
-    "xlmr":       "#059669",
-    "ANG": "#DC2626", "DIS": "#7C3AED", "FEA": "#9333EA",
-    "JOY": "#D97706", "NEU": "#475569",  "SAD": "#2563EB", "SUR": "#059669",
-}
-
-EMOTION_EMOJI = {
-    "ANG":"😡","DIS":"🤢","FEA":"😨","JOY":"😄","NEU":"😐","SAD":"😢","SUR":"😲",
-}
-EMOTION_NAME = {
-    "ANG":"Giận dữ","DIS":"Ghê tởm","FEA":"Sợ hãi",
-    "JOY":"Hạnh phúc","NEU":"Trung tính","SAD":"Buồn bã","SUR":"Ngạc nhiên",
-}
-MODEL_COLOR = {"BiLSTM": CLR["bilstm"], "DNN+TF-IDF": CLR["dnn"], "XLM-R": CLR["xlmr"]}
-
-# ── Global CSS ────────────────────────────────────────────────────────────────
-st.markdown(f"""
+# ── CSS ───────────────────────────────────────────────────────────────────────
+st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* ── Reset & base ── */
-*, *::before, *::after {{ box-sizing: border-box; }}
-html, body, .stApp {{ font-family: 'Inter', -apple-system, sans-serif !important; }}
-.stApp {{ background: {CLR['bg']}; }}
+html, body, .stApp, [class*="css"] {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+.stApp { background: #F9FAFB; }
 
-/* ── Hide Streamlit chrome ── */
-#MainMenu, footer, header {{ visibility: hidden; }}
-.block-container {{ padding: 2rem 2.5rem 4rem !important; max-width: 1200px; }}
+/* Ẩn chrome mặc định */
+#MainMenu, footer, header { visibility: hidden; }
+.block-container { padding: 2rem 2rem 3rem !important; max-width: 1080px; }
 
-/* ── Sidebar ── */
-[data-testid="stSidebar"] {{
-    background: {CLR['sidebar']} !important;
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background: #111827 !important;
     border-right: none !important;
-}}
-[data-testid="stSidebar"] * {{
-    color: #CBD5E1 !important;
-}}
-[data-testid="stSidebar"] .stRadio label {{
-    color: #94A3B8 !important;
+}
+[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important; }
+[data-testid="stSidebar"] .stRadio > div { gap: 2px !important; }
+[data-testid="stSidebar"] .stRadio label {
+    color: #9CA3AF !important;
     font-size: 0.875rem !important;
-    padding: 0.5rem 0.75rem;
-    border-radius: 8px;
-    display: block;
-    transition: background 0.15s;
-}}
-[data-testid="stSidebar"] .stRadio label:hover {{
-    background: rgba(255,255,255,0.06) !important;
-    color: #F1F5F9 !important;
-}}
-[data-testid="stSidebarContent"] h1,
-[data-testid="stSidebarContent"] h2,
-[data-testid="stSidebarContent"] h3 {{
-    color: #F1F5F9 !important;
-}}
-[data-testid="stSidebarContent"] hr {{
-    border-color: #1E293B !important;
-}}
-
-/* ── Cards ── */
-.card {{
-    background: {CLR['surface']};
-    border: 1px solid {CLR['border']};
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-}}
-.card-sm {{
-    background: {CLR['surface']};
-    border: 1px solid {CLR['border']};
-    border-radius: 10px;
-    padding: 1.25rem;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}}
-
-/* ── Metric card ── */
-.metric-box {{
-    background: {CLR['surface']};
-    border: 1px solid {CLR['border']};
-    border-radius: 10px;
-    padding: 1.25rem 1rem;
-    text-align: center;
-}}
-.metric-box .val {{
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: {CLR['primary']};
-    line-height: 1.2;
-}}
-.metric-box .lbl {{
-    font-size: 0.78rem;
-    font-weight: 500;
-    color: {CLR['muted']};
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 0.25rem;
-}}
-.metric-box .sub {{
-    font-size: 0.72rem;
-    color: #94A3B8;
-    margin-top: 0.25rem;
-}}
-
-/* ── Section header ── */
-.section-title {{
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: {CLR['text']};
-    margin: 0 0 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}}
-.section-title::after {{
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: {CLR['border']};
-    margin-left: 0.5rem;
-}}
-
-/* ── Page title ── */
-.page-header {{
-    margin-bottom: 1.75rem;
-}}
-.page-header h1 {{
-    font-size: 1.6rem !important;
-    font-weight: 700 !important;
-    color: {CLR['text']} !important;
-    margin: 0 !important;
-    line-height: 1.3 !important;
-}}
-.page-header p {{
-    color: {CLR['muted']};
-    font-size: 0.9rem;
-    margin: 0.4rem 0 0;
-}}
-
-/* ── Result card ── */
-.result-card {{
-    border-radius: 14px;
-    padding: 1.75rem;
-    text-align: center;
-    border: 2px solid;
-}}
-.result-card .emoji {{ font-size: 2.75rem; line-height: 1; }}
-.result-card .label {{ font-size: 1.4rem; font-weight: 700; margin: 0.5rem 0 0.2rem; }}
-.result-card .code  {{ font-size: 0.8rem; opacity: 0.7; font-weight: 500; }}
-.result-card .conf  {{ font-size: 1rem; margin-top: 0.75rem; opacity: 0.85; }}
-
-/* ── Probability bar ── */
-.prob-row {{ margin: 0.4rem 0; display: flex; align-items: center; gap: 0.75rem; }}
-.prob-label {{ width: 2.5rem; font-size: 0.8rem; font-weight: 600; color: {CLR['text']}; }}
-.prob-bar-bg {{ flex: 1; background: #F1F5F9; border-radius: 99px; height: 10px; overflow: hidden; }}
-.prob-bar-fill {{ height: 100%; border-radius: 99px; transition: width 0.4s ease; }}
-.prob-pct {{ width: 3rem; text-align: right; font-size: 0.8rem; color: {CLR['muted']}; font-variant-numeric: tabular-nums; }}
-
-/* ── Table ── */
-.styled-table {{ width: 100%; border-collapse: collapse; font-size: 0.875rem; }}
-.styled-table th {{
-    background: {CLR['bg']}; color: {CLR['muted']};
-    font-weight: 600; font-size: 0.75rem; text-transform: uppercase;
-    letter-spacing: 0.05em; padding: 0.75rem 1rem;
-    border-bottom: 2px solid {CLR['border']};
-    text-align: left;
-}}
-.styled-table td {{
-    padding: 0.875rem 1rem;
-    border-bottom: 1px solid {CLR['border']};
-    color: {CLR['text']};
-}}
-.styled-table tr:last-child td {{ border-bottom: none; }}
-.styled-table tr:hover td {{ background: {CLR['bg']}; }}
-.badge {{
-    display: inline-block; padding: 0.2rem 0.6rem;
-    border-radius: 99px; font-size: 0.72rem; font-weight: 600;
-}}
-
-/* ── Attention token ── */
-.token-list {{ display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }}
-.token {{
-    padding: 0.3rem 0.65rem; border-radius: 6px;
-    font-size: 0.85rem; font-weight: 500; border: 1px solid rgba(0,0,0,0.08);
-}}
-
-/* ── Tab ── */
-.stTabs [data-baseweb="tab-list"] {{
-    background: {CLR['bg']};
-    border-radius: 8px;
-    padding: 4px;
-    gap: 2px;
-    border: 1px solid {CLR['border']};
-}}
-.stTabs [data-baseweb="tab"] {{
-    border-radius: 6px !important;
     font-weight: 500 !important;
-    font-size: 0.875rem !important;
-}}
+    padding: 0.55rem 0.9rem !important;
+    border-radius: 7px !important;
+    cursor: pointer !important;
+    transition: all 0.15s !important;
+}
+[data-testid="stSidebar"] .stRadio label:hover {
+    background: rgba(255,255,255,0.07) !important;
+    color: #F3F4F6 !important;
+}
+[data-testid="stSidebar"] hr { border-color: #1F2937 !important; margin: 1rem 0 !important; }
 
-/* ── Button ── */
-.stButton > button {{
-    background: {CLR['primary']} !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-    font-size: 0.9rem !important;
-    padding: 0.6rem 1.5rem !important;
-    transition: opacity 0.15s !important;
-}}
-.stButton > button:hover {{ opacity: 0.88 !important; }}
+/* Button primary */
+.stButton > button {
+    background: #2563EB !important; color: #fff !important;
+    border: none !important; border-radius: 8px !important;
+    font-weight: 600 !important; font-size: 0.9rem !important;
+    padding: 0.55rem 1.4rem !important; letter-spacing: 0.01em !important;
+    transition: background 0.15s !important;
+}
+.stButton > button:hover { background: #1D4ED8 !important; }
+.stButton > button:disabled { background: #93C5FD !important; }
 
-/* ── Text area ── */
-.stTextArea textarea {{
-    border-radius: 10px !important;
-    border: 1.5px solid {CLR['border']} !important;
+/* Textarea */
+.stTextArea textarea {
+    border: 1.5px solid #E5E7EB !important;
+    border-radius: 9px !important;
     font-size: 0.95rem !important;
     font-family: 'Inter', sans-serif !important;
-}}
-.stTextArea textarea:focus {{
-    border-color: {CLR['primary']} !important;
-    box-shadow: 0 0 0 3px rgba(29,78,216,0.08) !important;
-}}
+    background: #fff !important;
+    color: #111827 !important;
+    transition: border-color 0.15s !important;
+}
+.stTextArea textarea:focus {
+    border-color: #2563EB !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1) !important;
+}
+.stTextArea label { color: #374151 !important; font-weight: 600 !important; font-size: 0.875rem !important; }
 
-/* ── Selectbox ── */
-.stSelectbox > div > div {{
+/* Selectbox */
+.stSelectbox > div > div {
+    border: 1.5px solid #E5E7EB !important;
     border-radius: 8px !important;
-    border-color: {CLR['border']} !important;
-}}
+    background: #fff !important;
+}
+.stSelectbox label { color: #374151 !important; font-weight: 600 !important; font-size: 0.875rem !important; }
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    background: #F3F4F6 !important;
+    border-radius: 9px !important;
+    padding: 3px !important;
+    gap: 2px !important;
+    border: 1px solid #E5E7EB !important;
+}
+.stTabs [data-baseweb="tab"] {
+    border-radius: 7px !important;
+    font-weight: 500 !important;
+    font-size: 0.865rem !important;
+    color: #6B7280 !important;
+    padding: 0.4rem 1rem !important;
+}
+.stTabs [aria-selected="true"] {
+    background: #fff !important;
+    color: #111827 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+}
+
+/* Divider */
+hr { border-color: #E5E7EB !important; margin: 1.25rem 0 !important; }
+
+/* Info / warning boxes */
+.stInfo, .stWarning { border-radius: 8px !important; font-size: 0.875rem !important; }
+
+/* Metric */
+[data-testid="stMetricValue"] { font-size: 1.5rem !important; font-weight: 700 !important; }
+[data-testid="stMetricLabel"] { font-size: 0.78rem !important; font-weight: 600 !important; text-transform: uppercase; letter-spacing: 0.05em; color: #6B7280 !important; }
+[data-testid="stMetricDelta"] { font-size: 0.78rem !important; }
 </style>
 """, unsafe_allow_html=True)
 
+# ── Constants ─────────────────────────────────────────────────────────────────
+LABELS = ["ANG","DIS","FEA","JOY","NEU","SAD","SUR"]
+EMOTION = {
+    "ANG": ("Giận dữ",    "😡", "#DC2626"),
+    "DIS": ("Ghê tởm",    "🤢", "#7C3AED"),
+    "FEA": ("Sợ hãi",     "😨", "#9333EA"),
+    "JOY": ("Hạnh phúc",  "😄", "#D97706"),
+    "NEU": ("Trung tính", "😐", "#6B7280"),
+    "SAD": ("Buồn bã",    "😢", "#2563EB"),
+    "SUR": ("Ngạc nhiên", "😲", "#059669"),
+}
+MODEL_CLR = {"DNN+TF-IDF":"#D97706","BiLSTM":"#2563EB","XLM-R":"#059669"}
+
+# ── Loaders ───────────────────────────────────────────────────────────────────
+@st.cache_resource(show_spinner="Đang tải model…")
+def get_lstm():
+    from src.inference.predict import LSTMPredictor; return LSTMPredictor()
+
+@st.cache_resource(show_spinner="Đang tải model…")
+def get_dnn():
+    from src.inference.predict import DNNPredictor; return DNNPredictor()
+
+@st.cache_resource(show_spinner="Đang tải model…")
+def get_xlmr():
+    from src.inference.predict import XLMRPredictor; return XLMRPredictor()
+
+@st.cache_data
+def read_json(name):
+    p = ROOT / name
+    return json.load(open(p)) if p.exists() else {}
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
-    <div style='padding: 0.5rem 0 1.25rem'>
-        <div style='font-size:1.5rem; margin-bottom:0.3rem'>🧠</div>
-        <div style='color:#F1F5F9; font-size:1rem; font-weight:700; line-height:1.3'>
-            Emotion Classifier
-        </div>
-        <div style='color:#64748B; font-size:0.78rem; margin-top:0.25rem'>
-            Vietnamese Social Media NLP
-        </div>
+    <div style='padding:0.25rem 0 1.5rem'>
+      <p style='color:#F9FAFB;font-size:1.05rem;font-weight:700;margin:0;line-height:1.3'>
+        Vietnamese Emotion Classifier
+      </p>
+      <p style='color:#4B5563;font-size:0.78rem;margin:0.3rem 0 0'>
+        BiLSTM · DNN · XLM-RoBERTa
+      </p>
     </div>
     """, unsafe_allow_html=True)
 
-    page = st.radio(
-        "nav",
-        ["🏠  Tổng quan", "🎯  Dự đoán", "📊  Kết quả", "📈  Training", "🔬  Ablation"],
-        label_visibility="collapsed",
-    )
+    page = st.radio("", [
+        "Demo dự đoán",
+        "Kết quả & Metrics",
+        "Training curves",
+        "Ablation study",
+        "Kiến trúc mô hình",
+    ], label_visibility="collapsed")
 
-    st.markdown("<div style='margin-top:auto; padding-top:2rem'>", unsafe_allow_html=True)
+    st.divider()
     st.markdown("""
-    <div style='background:#1E293B; border-radius:10px; padding:1rem; margin-top:2rem'>
-        <div style='color:#94A3B8; font-size:0.72rem; font-weight:600;
-                    text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.75rem'>
-            Về dự án
-        </div>
-        <div style='color:#CBD5E1; font-size:0.8rem; line-height:1.6'>
-            Đề tài tốt nghiệp<br>
-            Học sâu cho NLP<br>
-            BiLSTM · DNN · XLM-R
-        </div>
+    <div style='font-size:0.78rem;color:#4B5563;line-height:1.8'>
+      <b style='color:#9CA3AF;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em'>
+        Dataset
+      </b><br>
+      2.726 bình luận MXH<br>
+      7 nhãn cảm xúc<br>
+      Train / Val / Test: 70/15/15
     </div>
     """, unsafe_allow_html=True)
 
 
-# ── Data loaders ──────────────────────────────────────────────────────────────
-@st.cache_resource(show_spinner="Đang tải BiLSTM model…")
-def load_lstm():
-    from src.inference.predict import LSTMPredictor
-    return LSTMPredictor()
-
-@st.cache_resource(show_spinner="Đang tải DNN model…")
-def load_dnn():
-    from src.inference.predict import DNNPredictor
-    return DNNPredictor()
-
-@st.cache_resource(show_spinner="Đang tải XLM-R model…")
-def load_xlmr():
-    from src.inference.predict import XLMRPredictor
-    return XLMRPredictor()
-
-@st.cache_data
-def get_comparison():
-    p = ROOT / "outputs/reports/comparison.json"
-    return json.load(open(p)) if p.exists() else {}
-
-@st.cache_data
-def get_ablation():
-    p = ROOT / "outputs/logs/ablation_results.json"
-    return json.load(open(p)) if p.exists() else {}
-
-@st.cache_data
-def get_history(key):
-    p = ROOT / f"outputs/logs/{key}_history.json"
-    return json.load(open(p)) if p.exists() else None
-
-
-# ── Chart helpers ──────────────────────────────────────────────────────────────
-def apply_chart_style(fig, ax_list=None):
-    fig.patch.set_facecolor("white")
-    axes = ax_list or fig.get_axes()
-    for ax in (axes if isinstance(axes, list) else [axes]):
-        ax.set_facecolor("white")
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        ax.spines["left"].set_color("#E2E8F0")
-        ax.spines["bottom"].set_color("#E2E8F0")
-        ax.tick_params(colors="#64748B", labelsize=9)
-        ax.xaxis.label.set_color("#64748B")
-        ax.yaxis.label.set_color("#64748B")
-        ax.title.set_color("#0F172A")
-        ax.grid(axis="y", color="#F1F5F9", linewidth=1)
-        ax.set_axisbelow(True)
-
-
-def metric_card(value, label, sub=""):
-    return f"""<div class="metric-box">
-        <div class="val">{value}</div>
-        <div class="lbl">{label}</div>
-        {'<div class="sub">'+sub+'</div>' if sub else ''}
-    </div>"""
-
-
-def section(icon, title):
-    st.markdown(f'<div class="section-title">{icon} {title}</div>', unsafe_allow_html=True)
-
-
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE 1 — TỔNG QUAN
+# 1 — DEMO DỰ ĐOÁN
 # ══════════════════════════════════════════════════════════════════════════════
-if "Tổng quan" in page:
-    st.markdown("""
-    <div class="page-header">
-        <h1>Phân loại cảm xúc văn bản ngắn tiếng Việt</h1>
-        <p>Bidirectional LSTM với Bahdanau Attention · 7 nhãn cảm xúc · 2.726 mẫu mạng xã hội</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    comp = get_comparison()
-
-    # Metric row
-    m1, m2, m3, m4, m5 = st.columns(5)
-    bilstm_m = comp.get("BiLSTM", {})
-    xlmr_m   = comp.get("XLM-R", {})
-
-    cards = [
-        ("2.726", "Mẫu dữ liệu", "Social media VN"),
-        ("7",     "Nhãn cảm xúc", "ANG DIS FEA JOY…"),
-        (f"{bilstm_m.get('accuracy',0):.1%}" if bilstm_m else "—",
-         "BiLSTM Accuracy", "Mô hình đề xuất ★"),
-        (f"{xlmr_m.get('accuracy',0):.1%}" if xlmr_m else "—",
-         "XLM-R Accuracy", "Upper-bound"),
-        (f"{bilstm_m.get('num_params',0)/1e6:.1f}M" if bilstm_m else "—",
-         "BiLSTM Params", "vs 279M của XLM-R"),
-    ]
-    for col, (v, l, s) in zip([m1,m2,m3,m4,m5], cards):
-        col.markdown(metric_card(v, l, s), unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Architecture + Labels
-    left, right = st.columns([5, 4], gap="large")
-
-    with left:
-        section("🏗️", "Kiến trúc mô hình đề xuất")
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.code("""Đầu vào: Văn bản tiếng Việt (sau chuẩn hoá teencode)
-    │
-    ├─ Embedding  (vocab × 128d)  +  Dropout(0.3)
-    │
-    ├─ Bidirectional LSTM  ×  2 layers
-    │    Forward  →  h₁→  h₂→  …  hₙ→
-    │    Backward ←  hₙ←  …   h₂←  h₁←
-    │    Output:  [hᵢ→ ‖ hᵢ←]  (512d)
-    │
-    ├─ Bahdanau Attention
-    │    score = v · tanh(W·h)
-    │    α     = softmax(score)        [0,1]
-    │    context = Σ αᵢ·hᵢ            (512d)
-    │
-    └─ Linear(512→256) → LayerNorm → GELU
-       → Dropout → Linear(256→7) → Logits""", language="text")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with right:
-        section("🎭", "Nhãn cảm xúc")
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        for code, name in EMOTION_NAME.items():
-            emoji = EMOTION_EMOJI[code]
-            color = CLR.get(code, "#888")
-            st.markdown(
-                f'<div style="display:flex;align-items:center;gap:0.75rem;'
-                f'padding:0.5rem 0;border-bottom:1px solid {CLR["border"]}">'
-                f'<span style="font-size:1.3rem">{emoji}</span>'
-                f'<span class="badge" style="background:{color}18;color:{color}">{code}</span>'
-                f'<span style="font-size:0.875rem;color:{CLR["text"]};font-weight:500">{name}</span>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Pipeline steps
-    section("⚙️", "Pipeline xử lý dữ liệu")
-    steps = [
-        ("📥", "Load data", "dataset.xlsx · 2.726 mẫu"),
-        ("🧹", "Clean text", "URL · @mention · #tag"),
-        ("🔤", "Teencode", "80+ quy tắc chuẩn hoá"),
-        ("📚", "Vocabulary", f"word → index · ~9k tokens"),
-        ("🧠", "Train LSTM", "BiLSTM · 2 layers · Attn"),
-        ("📊", "Evaluate", "Accuracy · F1 · CM"),
-    ]
-    cols = st.columns(len(steps))
-    for col, (icon, title, desc) in zip(cols, steps):
-        col.markdown(
-            f'<div class="card-sm" style="text-align:center">'
-            f'<div style="font-size:1.6rem;margin-bottom:0.4rem">{icon}</div>'
-            f'<div style="font-weight:600;font-size:0.875rem;color:{CLR["text"]}">{title}</div>'
-            f'<div style="font-size:0.75rem;color:{CLR["muted"]};margin-top:0.25rem">{desc}</div>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE 2 — DỰ ĐOÁN
-# ══════════════════════════════════════════════════════════════════════════════
-elif "Dự đoán" in page:
-    st.markdown("""
-    <div class="page-header">
-        <h1>Phân tích cảm xúc</h1>
-        <p>Nhập văn bản tiếng Việt và chọn mô hình để phân tích cảm xúc</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Input section
-    col_a, col_b = st.columns([3, 1], gap="large")
-    with col_a:
-        text = st.text_area(
-            "Văn bản đầu vào",
-            placeholder="Nhập câu tiếng Việt bất kỳ… VD: Hôm nay tôi rất vui được gặp bạn bè!!!",
-            height=130,
-            label_visibility="collapsed",
-        )
-    with col_b:
-        st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
-        model_key = st.selectbox(
-            "Mô hình",
-            ["BiLSTM + Attention", "DNN + TF-IDF", "XLM-RoBERTa"],
-            label_visibility="visible",
-        )
-        show_attn = st.toggle("Attention weights", value=True,
-                              disabled="BiLSTM" not in model_key)
-        predict_btn = st.button("Phân tích →", use_container_width=True)
-
-    # Quick examples
-    with st.expander("💡 Câu ví dụ theo từng cảm xúc"):
-        ec1, ec2, ec3, ec4 = st.columns(4)
-        samples = [
-            ("😄 Hạnh phúc", "Hôm nay vui lắm, được điểm cao nè!!!"),
-            ("😢 Buồn bã",   "Chán quá không muốn làm gì cả..."),
-            ("😡 Giận dữ",   "Tức quá đi! Sao lại như vậy được???"),
-            ("😲 Ngạc nhiên","Ôi không ngờ lại được quà như vậy!"),
-        ]
-        for col, (label, sample) in zip([ec1,ec2,ec3,ec4], samples):
-            if col.button(label, use_container_width=True, key=f"ex_{label}"):
-                st.session_state["_sample_text"] = sample
-                st.rerun()
-
-    if "_sample_text" in st.session_state:
-        text = st.session_state.pop("_sample_text")
-        st.rerun()
-
-    # Prediction
-    if predict_btn and text.strip():
-        with st.spinner("Đang phân tích…"):
-            try:
-                predictor = (load_lstm() if "BiLSTM" in model_key
-                             else load_dnn() if "DNN" in model_key
-                             else load_xlmr())
-                result = predictor.predict(text)
-
-                pred   = result["predicted_label"]
-                conf   = result["confidence"]
-                probs  = result["probabilities"]
-                color  = CLR.get(pred, "#888")
-                emoji  = EMOTION_EMOJI.get(pred, "")
-                name   = EMOTION_NAME.get(pred, pred)
-
-                st.markdown("<br>", unsafe_allow_html=True)
-                r1, r2, r3 = st.columns([2, 3, 3], gap="large")
-
-                # Result card
-                with r1:
-                    section("✨", "Kết quả")
-                    st.markdown(
-                        f'<div class="result-card" '
-                        f'style="background:{color}0D;border-color:{color}40">'
-                        f'<div class="emoji">{emoji}</div>'
-                        f'<div class="label" style="color:{color}">{name}</div>'
-                        f'<div class="code" style="color:{color}">{pred}</div>'
-                        f'<div class="conf">Độ tin cậy: <b>{conf:.1%}</b></div>'
-                        f'</div>',
-                        unsafe_allow_html=True,
-                    )
-
-                # Probability bars
-                with r2:
-                    section("📊", "Phân phối xác suất")
-                    sorted_probs = sorted(probs.items(), key=lambda x: -x[1])
-                    bars_html = '<div style="margin-top:0.5rem">'
-                    for lbl, p in sorted_probs:
-                        c = CLR.get(lbl, "#888")
-                        bars_html += (
-                            f'<div class="prob-row">'
-                            f'<span class="prob-label">'
-                            f'{EMOTION_EMOJI.get(lbl,"")} {lbl}</span>'
-                            f'<div class="prob-bar-bg">'
-                            f'<div class="prob-bar-fill" style="width:{p*100:.1f}%;background:{c}"></div>'
-                            f'</div>'
-                            f'<span class="prob-pct">{p:.1%}</span>'
-                            f'</div>'
-                        )
-                    bars_html += '</div>'
-                    st.markdown(bars_html, unsafe_allow_html=True)
-
-                # Preprocessing preview
-                with r3:
-                    section("🔍", "Tiền xử lý")
-                    from src.preprocessing.clean_text import clean_text
-                    from src.preprocessing.teencode_normalize import normalize_teencode
-                    cleaned = clean_text(text, remove_emoji=False)
-                    normed  = normalize_teencode(cleaned)
-                    for step, val in [("Gốc", text), ("Làm sạch", cleaned), ("Chuẩn hoá", normed)]:
-                        st.markdown(
-                            f'<div style="margin-bottom:0.75rem">'
-                            f'<div style="font-size:0.72rem;font-weight:600;color:{CLR["muted"]};'
-                            f'text-transform:uppercase;letter-spacing:0.05em;'
-                            f'margin-bottom:0.25rem">{step}</div>'
-                            f'<div style="background:{CLR["bg"]};border:1px solid {CLR["border"]};'
-                            f'border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;'
-                            f'color:{CLR["text"]};word-break:break-word">{val}</div>'
-                            f'</div>',
-                            unsafe_allow_html=True,
-                        )
-
-                # Attention heatmap
-                if show_attn and "BiLSTM" in model_key and hasattr(predictor, "get_attention_weights"):
-                    weights = predictor.get_attention_weights(text)
-                    if weights:
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        section("🎯", "Attention weights — từ nào model tập trung vào")
-                        tokens = list(weights.keys())
-                        scores = np.array(list(weights.values()))
-                        s_norm = (scores - scores.min()) / (scores.max() - scores.min() + 1e-8)
-
-                        import matplotlib.colors as mcolors
-                        cmap = plt.cm.Blues
-                        tokens_html = '<div class="token-list">'
-                        for tok, raw_s, s in zip(tokens, scores, s_norm):
-                            rgba   = cmap(0.25 + s * 0.65)
-                            bg_hex = mcolors.to_hex(rgba)
-                            fg     = "white" if s > 0.55 else CLR["text"]
-                            tokens_html += (
-                                f'<span class="token" '
-                                f'style="background:{bg_hex};color:{fg};'
-                                f'font-size:{0.8+s*0.25:.2f}rem">'
-                                f'{tok}</span>'
-                            )
-                        tokens_html += '</div>'
-                        st.markdown('<div class="card">' + tokens_html + '</div>',
-                                    unsafe_allow_html=True)
-
-            except FileNotFoundError as e:
-                st.error(f"⚠️ Model chưa được train hoặc không tìm thấy file: `{e}`")
-            except Exception as e:
-                st.error(f"Lỗi: {e}")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE 3 — KẾT QUẢ
-# ══════════════════════════════════════════════════════════════════════════════
-elif "Kết quả" in page:
-    st.markdown("""
-    <div class="page-header">
-        <h1>Kết quả thực nghiệm</h1>
-        <p>So sánh hiệu suất 3 mô hình trên tập kiểm tra (test set · 408 mẫu)</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    comp = get_comparison()
-    if not comp:
-        st.warning("Chưa có dữ liệu — chạy `python main.py evaluate`"); st.stop()
-
-    # Metric summary row
-    cols = st.columns(len(comp), gap="medium")
-    for col, (name, m) in zip(cols, comp.items()):
-        c = MODEL_COLOR.get(name, CLR["primary"])
-        tag = "Đề xuất ★" if name == "BiLSTM" else ("Upper bound" if name == "XLM-R" else "Baseline")
-        col.markdown(
-            f'<div class="metric-box" style="border-top:3px solid {c}">'
-            f'<div class="val" style="color:{c}">{m["accuracy"]:.2%}</div>'
-            f'<div class="lbl">{name}</div>'
-            f'<div class="sub">{tag}</div>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    tab1, tab2, tab3 = st.tabs(["📋 Bảng tổng hợp", "📉 Confusion Matrix", "📊 Biểu đồ"])
-
-    # ── Tab 1: Table ──────────────────────────────────────────────────────────
-    with tab1:
-        rows = ""
-        for name, m in comp.items():
-            c = MODEL_COLOR.get(name, "#888")
-            star = " ★" if name == "BiLSTM" else ""
-            p_str = f"{m['num_params']:,}"
-            rows += (
-                f"<tr>"
-                f'<td><span class="badge" style="background:{c}18;color:{c};font-size:0.8rem">'
-                f'{name+star}</span></td>'
-                f"<td><b>{m['accuracy']:.4f}</b></td>"
-                f"<td>{m['precision']:.4f}</td>"
-                f"<td>{m['recall']:.4f}</td>"
-                f"<td>{m['f1']:.4f}</td>"
-                f"<td style='color:{CLR['muted']}'>{p_str}</td>"
-                f"<td style='color:{CLR['muted']}'>{m['inference_ms_per_sample']:.2f} ms</td>"
-                f"</tr>"
-            )
-        table_html = (
-            f'<div class="card"><table class="styled-table">'
-            f"<thead><tr>"
-            f"<th>Mô hình</th><th>Accuracy</th><th>Precision</th>"
-            f"<th>Recall</th><th>F1</th><th>Params</th><th>Inference</th>"
-            f"</tr></thead><tbody>{rows}</tbody></table></div>"
-        )
-        st.markdown(table_html, unsafe_allow_html=True)
-
-        # Per-class F1
-        pcf1 = comp.get("BiLSTM", {}).get("per_class_f1", {})
-        if pcf1:
-            st.markdown("<br>", unsafe_allow_html=True)
-            section("🎯", "F1 theo từng lớp — BiLSTM+Attention")
-            items = sorted(pcf1.items(), key=lambda x: -x[1])
-            bars_html = '<div class="card"><div style="display:flex;flex-direction:column;gap:0.6rem">'
-            for lbl, f1 in items:
-                c = CLR.get(lbl, "#888")
-                bars_html += (
-                    f'<div style="display:flex;align-items:center;gap:1rem">'
-                    f'<span style="width:2.5rem;font-size:0.85rem;font-weight:600">'
-                    f'{EMOTION_EMOJI.get(lbl,"")} {lbl}</span>'
-                    f'<div style="flex:1;background:#F1F5F9;border-radius:99px;height:12px;overflow:hidden">'
-                    f'<div style="width:{f1*100:.1f}%;background:{c};height:100%;border-radius:99px"></div>'
-                    f'</div>'
-                    f'<span style="width:3.5rem;text-align:right;font-size:0.82rem;'
-                    f'color:{CLR["text"]};font-weight:600">{f1:.3f}</span>'
-                    f'</div>'
-                )
-            bars_html += '</div></div>'
-            st.markdown(bars_html, unsafe_allow_html=True)
-
-    # ── Tab 2: Confusion Matrix ───────────────────────────────────────────────
-    with tab2:
-        cm_map = {
-            "BiLSTM":     "bilstm_cm.png",
-            "DNN+TF-IDF": "dnn_tf_idf_cm.png",
-            "XLM-R":      "xlm_r_cm.png",
-        }
-        cols = st.columns(3, gap="medium")
-        for col, (name, fname) in zip(cols, cm_map.items()):
-            p = ROOT / "outputs/figures" / fname
-            c = MODEL_COLOR.get(name, "#888")
-            with col:
-                st.markdown(
-                    f'<div style="text-align:center;margin-bottom:0.5rem">'
-                    f'<span class="badge" style="background:{c}18;color:{c}">{name}</span>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-                if p.exists():
-                    st.image(str(p), use_container_width=True)
-                else:
-                    st.info("Chưa có hình")
-
-    # ── Tab 3: Charts ──────────────────────────────────────────────────────────
-    with tab3:
-        p = ROOT / "outputs/figures/model_comparison.png"
-        if p.exists():
-            st.image(str(p), use_container_width=True)
-
-        # Interactive radar chart với plotly
-        if comp:
-            section("📡", "Radar chart — so sánh đa chiều")
-            cats = ["Accuracy", "Precision", "Recall", "F1"]
-            fig_radar = go.Figure()
-            for name, m in comp.items():
-                vals = [m["accuracy"], m["precision"], m["recall"], m["f1"]]
-                c    = MODEL_COLOR.get(name, "#888")
-                fig_radar.add_trace(go.Scatterpolar(
-                    r=vals + [vals[0]],
-                    theta=cats + [cats[0]],
-                    fill="toself",
-                    name=name,
-                    line_color=c,
-                    fillcolor=c,
-                    opacity=0.25,
-                ))
-            fig_radar.update_layout(
-                polar=dict(
-                    radialaxis=dict(visible=True, range=[0.7, 0.85],
-                                    tickfont=dict(size=9)),
-                    angularaxis=dict(tickfont=dict(size=11, color="#0F172A")),
-                    bgcolor="white",
-                ),
-                showlegend=True,
-                paper_bgcolor="white",
-                plot_bgcolor="white",
-                margin=dict(l=40, r=40, t=30, b=30),
-                height=360,
-                legend=dict(font=dict(size=11)),
-            )
-            st.plotly_chart(fig_radar, use_container_width=True)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE 4 — TRAINING CURVES
-# ══════════════════════════════════════════════════════════════════════════════
-elif "Training" in page:
-    st.markdown("""
-    <div class="page-header">
-        <h1>Training curves</h1>
-        <p>Diễn tiến loss và accuracy qua từng epoch trong quá trình huấn luyện</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    tab_labels = ["BiLSTM + Attention ★", "DNN + TF-IDF", "XLM-RoBERTa"]
-    hist_keys  = ["lstm", "dnn", "xlmr"]
-    model_clrs = [CLR["bilstm"], CLR["dnn"], CLR["xlmr"]]
-    tabs       = st.tabs(tab_labels)
-
-    for tab, key, mclr in zip(tabs, hist_keys, model_clrs):
-        with tab:
-            hist = get_history(key)
-            if not hist:
-                st.info(f"Chưa có {key}_history.json"); continue
-
-            epochs = list(range(1, len(hist["train_loss"]) + 1))
-
-            # Plotly interactive
-            fig = go.Figure()
-            for y_key, dash, name in [
-                ("train_loss", "solid",  "Train loss"),
-                ("val_loss",   "dot",    "Val loss"),
-            ]:
-                fig.add_trace(go.Scatter(
-                    x=epochs, y=hist[y_key], name=name,
-                    mode="lines+markers",
-                    line=dict(width=2.5, dash=dash, color=mclr if "train" in y_key else "#94A3B8"),
-                    marker=dict(size=5),
-                ))
-            fig.update_layout(
-                title=dict(text="Loss per Epoch", font=dict(size=13, color="#0F172A")),
-                xaxis=dict(title="Epoch", showgrid=True, gridcolor="#F1F5F9",
-                           tickfont=dict(size=10), title_font=dict(size=11)),
-                yaxis=dict(title="Cross-Entropy Loss", showgrid=True,
-                           gridcolor="#F1F5F9", tickfont=dict(size=10),
-                           title_font=dict(size=11)),
-                paper_bgcolor="white", plot_bgcolor="white",
-                height=320, margin=dict(l=50, r=20, t=45, b=40),
-                legend=dict(font=dict(size=10)),
-                hovermode="x unified",
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-            fig2 = go.Figure()
-            for y_key, name in [("train_acc","Train acc"), ("val_acc","Val acc")]:
-                fig2.add_trace(go.Scatter(
-                    x=epochs, y=hist[y_key], name=name,
-                    mode="lines+markers",
-                    line=dict(width=2.5,
-                              color=mclr if "train" in y_key else "#94A3B8"),
-                    marker=dict(size=5),
-                    hovertemplate="%{y:.2%}",
-                ))
-            fig2.update_layout(
-                title=dict(text="Accuracy per Epoch", font=dict(size=13, color="#0F172A")),
-                xaxis=dict(title="Epoch", showgrid=True, gridcolor="#F1F5F9",
-                           tickfont=dict(size=10), title_font=dict(size=11)),
-                yaxis=dict(title="Accuracy", showgrid=True, gridcolor="#F1F5F9",
-                           tickformat=".0%", tickfont=dict(size=10),
-                           title_font=dict(size=11)),
-                paper_bgcolor="white", plot_bgcolor="white",
-                height=320, margin=dict(l=50, r=20, t=45, b=40),
-                legend=dict(font=dict(size=10)),
-                hovermode="x unified",
-            )
-            st.plotly_chart(fig2, use_container_width=True)
-
-            # Summary metrics
-            c1, c2, c3, c4 = st.columns(4)
-            c1.markdown(metric_card(len(hist["train_loss"]), "Epochs trained"), unsafe_allow_html=True)
-            c2.markdown(metric_card(hist.get("best_epoch","—"), "Best epoch"),  unsafe_allow_html=True)
-            c3.markdown(metric_card(f"{hist.get('test_acc',0):.2%}" if hist.get('test_acc') else "—",
-                                    "Test accuracy"), unsafe_allow_html=True)
-            c4.markdown(metric_card(f"{hist.get('test_f1',0):.2%}" if hist.get('test_f1') else "—",
-                                    "Test F1"), unsafe_allow_html=True)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE 5 — ABLATION
-# ══════════════════════════════════════════════════════════════════════════════
-elif "Ablation" in page:
-    st.markdown("""
-    <div class="page-header">
-        <h1>Ablation Study</h1>
-        <p>Phân tích đóng góp của từng thành phần trong kiến trúc BiLSTM+Attention</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    abl = get_ablation()
-    if not abl:
-        st.warning("Chưa có ablation_results.json"); st.stop()
-
-    vals = list(abl.values())
-
-    # Contribution metrics
-    if len(vals) >= 3:
-        delta_bi   = vals[1]["accuracy"] - vals[0]["accuracy"]
-        delta_attn = vals[2]["accuracy"] - vals[1]["accuracy"]
-
-        c1, c2, c3 = st.columns(3, gap="medium")
-        for col, (title, base, result, delta) in zip([c1,c2,c3], [
-            ("LSTM baseline",     None,            vals[0]["accuracy"], None),
-            ("+ Bidirectionality", vals[0]["accuracy"], vals[1]["accuracy"], delta_bi),
-            ("+ Attention",        vals[1]["accuracy"], vals[2]["accuracy"], delta_attn),
-        ]):
-            color = (CLR["xlmr"] if delta and delta > 0.005
-                     else CLR["dnn"] if delta and delta < -0.002
-                     else CLR["primary"])
-            col.markdown(
-                f'<div class="metric-box" style="border-top:3px solid {color}">'
-                f'<div class="val" style="color:{color}">{result:.2%}</div>'
-                f'<div class="lbl">{title}</div>'
-                f'<div class="sub">{"Δ "+f"{delta:+.2%}" if delta is not None else "Baseline"}</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Plotly grouped bar
-    section("📊", "So sánh Accuracy và F1")
-    names_abl = [n.replace(" (proposed)", " ★") for n in abl.keys()]
-    accs = [m["accuracy"] for m in abl.values()]
-    f1s  = [m["f1"]       for m in abl.values()]
-    colors_abl = ["#94A3B8", "#60A5FA", CLR["bilstm"]]
-
-    fig_abl = go.Figure()
-    fig_abl.add_trace(go.Bar(
-        name="Accuracy", x=names_abl, y=accs,
-        marker_color=colors_abl, text=[f"{v:.3f}" for v in accs],
-        textposition="outside", offsetgroup=0,
-    ))
-    fig_abl.add_trace(go.Bar(
-        name="F1", x=names_abl, y=f1s,
-        marker_color=[c + "99" for c in colors_abl],
-        text=[f"{v:.3f}" for v in f1s],
-        textposition="outside", offsetgroup=1,
-    ))
-    fig_abl.update_layout(
-        barmode="group",
-        yaxis=dict(range=[0.72, 0.82], tickformat=".0%",
-                   title="Score", showgrid=True, gridcolor="#F1F5F9",
-                   title_font=dict(size=11), tickfont=dict(size=10)),
-        xaxis=dict(tickfont=dict(size=11)),
-        paper_bgcolor="white", plot_bgcolor="white",
-        height=380, margin=dict(l=50, r=20, t=20, b=40),
-        legend=dict(font=dict(size=11)),
-        bargap=0.2, bargroupgap=0.05,
-    )
-    st.plotly_chart(fig_abl, use_container_width=True)
-
-    # Detail table
-    section("📋", "Bảng chi tiết")
-    rows = ""
-    comps = [("❌","❌"),("✅","❌"),("✅","✅")]
-    for (name, m), (bi, attn) in zip(abl.items(), comps):
-        star  = " ★" if "Attention" in name else ""
-        c     = CLR["bilstm"] if "Attention" in name else CLR["primary"] if "BiLSTM" in name else CLR["muted"]
-        rows += (
-            f"<tr>"
-            f'<td><span class="badge" style="background:{c}18;color:{c}">{name+star}</span></td>'
-            f"<td style='text-align:center'>{bi}</td>"
-            f"<td style='text-align:center'>{attn}</td>"
-            f"<td><b>{m['accuracy']:.4f}</b></td>"
-            f"<td>{m['f1']:.4f}</td>"
-            f"<td style='color:{CLR['muted']}'>{m['num_params']:,}</td>"
-            f"</tr>"
-        )
+if page == "Demo dự đoán":
+    st.markdown("## Phân tích cảm xúc văn bản")
     st.markdown(
-        f'<div class="card"><table class="styled-table">'
-        f"<thead><tr><th>Variant</th><th>BiDirectional</th><th>Attention</th>"
-        f"<th>Accuracy</th><th>F1</th><th>Params</th></tr></thead>"
-        f"<tbody>{rows}</tbody></table></div>",
+        "<p style='color:#6B7280;margin-top:-0.5rem;margin-bottom:1.5rem;font-size:0.9rem'>"
+        "Nhập văn bản tiếng Việt bất kỳ — hệ thống tự động nhận diện cảm xúc.</p>",
         unsafe_allow_html=True,
     )
 
-    # Insight box
-    if len(vals) >= 3:
-        st.markdown("<br>", unsafe_allow_html=True)
-        insight = (
-            f"**Bidirectionality** cải thiện accuracy **{delta_bi:+.2%}** bằng cách đọc văn bản "
-            f"theo cả hai chiều, giúp mỗi từ hiểu ngữ cảnh trái và phải. "
-        )
-        if abs(delta_attn) < 0.005:
-            insight += (
-                f"**Attention** có đóng góp không đáng kể ({delta_attn:+.2%}) trên tập dữ liệu này — "
-                f"có thể do văn bản ngắn, BiLSTM đã nắm đủ ngữ cảnh toàn cục. "
-                f"Tuy nhiên, Attention vẫn mang lại giá trị **interpretability** cho mô hình."
-            )
-        else:
-            insight += f"**Attention** đóng góp thêm **{delta_attn:+.2%}** vào accuracy."
+    # ── Input ─────────────────────────────────────────────────────────────────
+    col_in, col_cfg = st.columns([3, 1], gap="large")
 
-        st.info(f"💡 **Nhận xét**: {insight}")
+    with col_in:
+        text_input = st.text_area(
+            "Văn bản đầu vào",
+            value=st.session_state.get("demo_text", ""),
+            height=120,
+            placeholder="VD: Hôm nay mình cực vui vì thi đạt điểm cao, cảm ơn mọi người!!!",
+        )
+
+    with col_cfg:
+        st.markdown("<div style='height:0.25rem'></div>", unsafe_allow_html=True)
+        model_sel = st.selectbox("Mô hình", ["BiLSTM + Attention", "DNN + TF-IDF", "XLM-RoBERTa"])
+        show_attn = st.toggle("Attention weights", value=True,
+                              disabled="BiLSTM" not in model_sel)
+        btn = st.button("Phân tích →", use_container_width=True, type="primary")
+
+    # ── Quick examples ────────────────────────────────────────────────────────
+    with st.expander("Thử với câu mẫu"):
+        ex_rows = [
+            [("😄 Vui", "Hôm nay thi xong rồi, vui lắm kkk!!!"),
+             ("😢 Buồn", "Mệt và buồn quá, không muốn làm gì cả...")],
+            [("😡 Tức", "Tức chết đi được, sao lại phản bội như vậy???"),
+             ("😲 Shock", "Trời ơi không ngờ được nhận học bổng, shock thật!")],
+            [("😨 Sợ", "Lo lắng quá không biết kết quả ra sao nữa..."),
+             ("🤢 Ghê", "Kinh quá, sao có thể làm chuyện đó được chứ")],
+        ]
+        for row in ex_rows:
+            c1, c2 = st.columns(2)
+            for col, (lbl, sample) in zip([c1,c2], row):
+                if col.button(lbl, key=f"ex_{lbl}", use_container_width=True):
+                    st.session_state["demo_text"] = sample
+                    st.rerun()
+
+    # ── Prediction ────────────────────────────────────────────────────────────
+    if btn and text_input.strip():
+        with st.spinner("Đang phân tích…"):
+            try:
+                predictor = (get_lstm() if "BiLSTM" in model_sel
+                             else get_dnn() if "DNN" in model_sel
+                             else get_xlmr())
+                res   = predictor.predict(text_input)
+                pred  = res["predicted_label"]
+                conf  = res["confidence"]
+                probs = res["probabilities"]
+                ename, eemoji, ecolor = EMOTION[pred]
+
+            except FileNotFoundError:
+                st.error("Model chưa được train. Chạy `python main.py train` trước.")
+                st.stop()
+
+        st.divider()
+
+        # Result + probs + preprocessing
+        r1, r2, r3 = st.columns([1, 2, 2], gap="large")
+
+        # Card kết quả
+        with r1:
+            st.markdown(
+                f"<div style='background:{ecolor}0D;border:1.5px solid {ecolor}30;"
+                f"border-radius:12px;padding:1.5rem;text-align:center'>"
+                f"<div style='font-size:2.75rem;line-height:1'>{eemoji}</div>"
+                f"<div style='font-size:1.1rem;font-weight:700;color:{ecolor};"
+                f"margin:0.6rem 0 0.2rem'>{ename}</div>"
+                f"<div style='font-size:0.75rem;color:{ecolor};opacity:.7;"
+                f"font-weight:600;letter-spacing:0.05em'>{pred}</div>"
+                f"<div style='margin-top:0.9rem;padding-top:0.9rem;"
+                f"border-top:1px solid {ecolor}20'>"
+                f"<span style='font-size:1.4rem;font-weight:700;color:#111827'>"
+                f"{conf:.1%}</span>"
+                f"<div style='font-size:0.72rem;color:#9CA3AF;margin-top:2px'>Độ tin cậy</div>"
+                f"</div></div>",
+                unsafe_allow_html=True,
+            )
+
+        # Probability bars
+        with r2:
+            st.markdown(
+                "<p style='font-size:0.78rem;font-weight:600;color:#6B7280;"
+                "text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.75rem'>"
+                "Phân phối xác suất</p>",
+                unsafe_allow_html=True,
+            )
+            for lbl in sorted(probs, key=lambda x: -probs[x]):
+                p = probs[lbl]
+                _, _, c = EMOTION[lbl]
+                is_pred = lbl == pred
+                st.markdown(
+                    f"<div style='display:flex;align-items:center;gap:10px;margin-bottom:7px'>"
+                    f"<span style='width:26px;font-size:0.8rem;font-weight:"
+                    f"{'700' if is_pred else '400'};color:#374151'>{lbl}</span>"
+                    f"<div style='flex:1;background:#F3F4F6;border-radius:99px;"
+                    f"height:9px;overflow:hidden'>"
+                    f"<div style='width:{p*100:.1f}%;height:100%;background:{c};"
+                    f"border-radius:99px'></div></div>"
+                    f"<span style='width:38px;text-align:right;font-size:0.8rem;"
+                    f"color:{'#111827' if is_pred else '#9CA3AF'};"
+                    f"font-weight:{'600' if is_pred else '400'}'>{p:.1%}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+        # Preprocessing
+        with r3:
+            st.markdown(
+                "<p style='font-size:0.78rem;font-weight:600;color:#6B7280;"
+                "text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.75rem'>"
+                "Tiền xử lý</p>",
+                unsafe_allow_html=True,
+            )
+            from src.preprocessing.clean_text import clean_text
+            from src.preprocessing.teencode_normalize import normalize_teencode
+            cleaned = clean_text(text_input, remove_emoji=False)
+            normed  = normalize_teencode(cleaned)
+            for step, val in [("Văn bản gốc", text_input),
+                               ("Sau làm sạch", cleaned),
+                               ("Sau chuẩn hoá", normed)]:
+                st.markdown(
+                    f"<div style='margin-bottom:0.6rem'>"
+                    f"<div style='font-size:0.72rem;font-weight:600;"
+                    f"color:#9CA3AF;margin-bottom:3px'>{step}</div>"
+                    f"<div style='background:#F9FAFB;border:1px solid #E5E7EB;"
+                    f"border-radius:7px;padding:0.45rem 0.7rem;"
+                    f"font-size:0.85rem;color:#374151;word-break:break-word;"
+                    f"line-height:1.5'>{val or '<em style=\"color:#D1D5DB\">trống</em>'}"
+                    f"</div></div>",
+                    unsafe_allow_html=True,
+                )
+
+        # Attention heatmap
+        if (show_attn and "BiLSTM" in model_sel
+                and hasattr(predictor, "get_attention_weights")):
+            weights = predictor.get_attention_weights(text_input)
+            if weights:
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown(
+                    "<p style='font-size:0.78rem;font-weight:600;color:#6B7280;"
+                    "text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.75rem'>"
+                    "Attention weights — từ nào model tập trung</p>",
+                    unsafe_allow_html=True,
+                )
+                tokens = list(weights.keys())
+                scores = np.array(list(weights.values()))
+                s_norm = (scores - scores.min()) / (scores.max() - scores.min() + 1e-8)
+
+                fig, ax = plt.subplots(figsize=(min(14, max(6, len(tokens)*0.85)), 2.2))
+                colors  = [plt.cm.Blues(0.3 + s * 0.6) for s in s_norm]
+                bars    = ax.bar(range(len(tokens)), s_norm, color=colors,
+                                 edgecolor="white", linewidth=0.8, width=0.7)
+                ax.set_xticks(range(len(tokens)))
+                ax.set_xticklabels(tokens, rotation=25, ha="right",
+                                   fontsize=10.5, fontfamily="monospace")
+                ax.set_yticks([])
+                for spine in ax.spines.values():
+                    spine.set_visible(False)
+                ax.set_facecolor("white")
+                fig.patch.set_facecolor("white")
+                fig.tight_layout(pad=0.5)
+                st.pyplot(fig, use_container_width=True)
+                plt.close(fig)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 2 — KẾT QUẢ & METRICS
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "Kết quả & Metrics":
+    st.markdown("## Kết quả thực nghiệm")
+    st.markdown(
+        "<p style='color:#6B7280;margin-top:-0.5rem;margin-bottom:1.5rem;font-size:0.9rem'>"
+        "Đánh giá trên tập kiểm tra (test set · 408 mẫu · stratified).</p>",
+        unsafe_allow_html=True,
+    )
+
+    comp = read_json("outputs/reports/comparison.json")
+    if not comp:
+        st.warning("Chưa có dữ liệu. Chạy `python main.py evaluate`"); st.stop()
+
+    # Metric row
+    cols = st.columns(len(comp), gap="medium")
+    for col, (name, m) in zip(cols, comp.items()):
+        c = MODEL_CLR.get(name, "#2563EB")
+        tag = "Đề xuất" if name == "BiLSTM" else ("Upper bound" if name == "XLM-R" else "Baseline")
+        col.markdown(
+            f"<div style='background:#fff;border:1px solid #E5E7EB;border-top:3px solid {c};"
+            f"border-radius:10px;padding:1.1rem 1rem;text-align:center'>"
+            f"<div style='font-size:1.6rem;font-weight:700;color:{c}'>{m['accuracy']:.2%}</div>"
+            f"<div style='font-size:0.78rem;font-weight:600;color:#374151;margin:0.2rem 0 0.1rem'>{name}</div>"
+            f"<div style='font-size:0.72rem;color:#9CA3AF'>{tag}</div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    tab1, tab2, tab3 = st.tabs(["Bảng so sánh", "Confusion matrix", "Radar chart"])
+
+    with tab1:
+        st.markdown("<br>", unsafe_allow_html=True)
+        # Table
+        header = (
+            "<div style='background:#fff;border:1px solid #E5E7EB;border-radius:10px;"
+            "overflow:hidden'><table style='width:100%;border-collapse:collapse;"
+            "font-size:0.875rem'>"
+            "<thead><tr style='background:#F9FAFB'>"
+        )
+        for h in ["Mô hình","Accuracy","Precision","Recall","F1","Params","Inf. (ms)"]:
+            header += (f"<th style='padding:0.75rem 1rem;text-align:left;"
+                       f"color:#6B7280;font-size:0.72rem;font-weight:600;"
+                       f"text-transform:uppercase;letter-spacing:0.05em;"
+                       f"border-bottom:1px solid #E5E7EB'>{h}</th>")
+        header += "</tr></thead><tbody>"
+
+        rows = ""
+        for name, m in comp.items():
+            c = MODEL_CLR.get(name, "#888")
+            star = " ★" if name == "BiLSTM" else ""
+            rows += (
+                f"<tr style='border-bottom:1px solid #F3F4F6'>"
+                f"<td style='padding:0.875rem 1rem'>"
+                f"<span style='background:{c}18;color:{c};padding:0.2rem 0.65rem;"
+                f"border-radius:99px;font-size:0.78rem;font-weight:600'>{name+star}</span></td>"
+                f"<td style='padding:0.875rem 1rem;font-weight:600;color:#111827'>"
+                f"{m['accuracy']:.4f}</td>"
+                f"<td style='padding:0.875rem 1rem;color:#374151'>{m['precision']:.4f}</td>"
+                f"<td style='padding:0.875rem 1rem;color:#374151'>{m['recall']:.4f}</td>"
+                f"<td style='padding:0.875rem 1rem;color:#374151'>{m['f1']:.4f}</td>"
+                f"<td style='padding:0.875rem 1rem;color:#9CA3AF'>{m['num_params']:,}</td>"
+                f"<td style='padding:0.875rem 1rem;color:#9CA3AF'>"
+                f"{m['inference_ms_per_sample']:.2f} ms</td>"
+                f"</tr>"
+            )
+        st.markdown(header + rows + "</tbody></table></div>", unsafe_allow_html=True)
+
+        # Per-class F1 BiLSTM
+        pcf1 = comp.get("BiLSTM", {}).get("per_class_f1", {})
+        if pcf1:
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown(
+                "<p style='font-size:0.78rem;font-weight:600;color:#6B7280;"
+                "text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.75rem'>"
+                "F1 theo từng nhãn — BiLSTM</p>",
+                unsafe_allow_html=True,
+            )
+            items = sorted(pcf1.items(), key=lambda x: -x[1])
+            bars_html = (
+                "<div style='background:#fff;border:1px solid #E5E7EB;"
+                "border-radius:10px;padding:1.25rem;display:flex;"
+                "flex-direction:column;gap:0.6rem'>"
+            )
+            for lbl, f1 in items:
+                _, emoji, c = EMOTION[lbl]
+                bars_html += (
+                    f"<div style='display:flex;align-items:center;gap:12px'>"
+                    f"<span style='width:80px;font-size:0.82rem;font-weight:500;"
+                    f"color:#374151;flex-shrink:0'>{emoji} {lbl}</span>"
+                    f"<div style='flex:1;background:#F3F4F6;border-radius:99px;height:10px'>"
+                    f"<div style='width:{f1*100:.1f}%;background:{c};"
+                    f"height:100%;border-radius:99px'></div></div>"
+                    f"<span style='width:42px;text-align:right;font-size:0.82rem;"
+                    f"font-weight:600;color:#111827'>{f1:.3f}</span>"
+                    f"</div>"
+                )
+            st.markdown(bars_html + "</div>", unsafe_allow_html=True)
+
+    with tab2:
+        cm_files = {
+            "BiLSTM":     ROOT/"outputs/figures/bilstm_cm.png",
+            "DNN+TF-IDF": ROOT/"outputs/figures/dnn_tf_idf_cm.png",
+            "XLM-R":      ROOT/"outputs/figures/xlm_r_cm.png",
+        }
+        c1, c2, c3 = st.columns(3, gap="medium")
+        for col, (name, path) in zip([c1,c2,c3], cm_files.items()):
+            c = MODEL_CLR.get(name, "#888")
+            col.markdown(
+                f"<p style='text-align:center;margin-bottom:0.5rem'>"
+                f"<span style='background:{c}18;color:{c};padding:0.25rem 0.75rem;"
+                f"border-radius:99px;font-size:0.78rem;font-weight:600'>{name}</span></p>",
+                unsafe_allow_html=True,
+            )
+            if path.exists():
+                col.image(str(path), use_container_width=True)
+            else:
+                col.caption("Chưa có hình")
+
+    with tab3:
+        metrics = ["Accuracy","Precision","Recall","F1"]
+        fig_r = go.Figure()
+        for name, m in comp.items():
+            vals = [m["accuracy"], m["precision"], m["recall"], m["f1"]]
+            c = MODEL_CLR.get(name, "#888")
+            fig_r.add_trace(go.Scatterpolar(
+                r=vals + [vals[0]], theta=metrics + [metrics[0]],
+                fill="toself", name=name,
+                line=dict(color=c, width=2.5),
+                fillcolor=c, opacity=0.18,
+                marker=dict(size=6, color=c),
+            ))
+        fig_r.update_layout(
+            polar=dict(
+                radialaxis=dict(range=[0.72, 0.86], showticklabels=True,
+                                tickfont=dict(size=9, color="#9CA3AF"),
+                                gridcolor="#E5E7EB", linecolor="#E5E7EB"),
+                angularaxis=dict(tickfont=dict(size=11.5, color="#374151"),
+                                 gridcolor="#E5E7EB", linecolor="#E5E7EB"),
+                bgcolor="white",
+            ),
+            paper_bgcolor="white", showlegend=True,
+            legend=dict(font=dict(size=11), bgcolor="white", bordercolor="#E5E7EB",
+                        borderwidth=1, x=1.05, y=0.5),
+            margin=dict(l=50, r=120, t=20, b=20), height=380,
+        )
+        st.plotly_chart(fig_r, use_container_width=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 3 — TRAINING CURVES
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "Training curves":
+    st.markdown("## Training curves")
+    st.markdown(
+        "<p style='color:#6B7280;margin-top:-0.5rem;margin-bottom:1.5rem;font-size:0.9rem'>"
+        "Diễn tiến loss và accuracy qua từng epoch. Điểm đứt quãng = early stopping.</p>",
+        unsafe_allow_html=True,
+    )
+
+    tabs = st.tabs(["BiLSTM + Attention ★", "DNN + TF-IDF", "XLM-RoBERTa"])
+    configs = [("lstm","BiLSTM","#2563EB"), ("dnn","DNN+TF-IDF","#D97706"), ("xlmr","XLM-R","#059669")]
+
+    for tab, (key, label, mclr) in zip(tabs, configs):
+        with tab:
+            hist = read_json(f"outputs/logs/{key}_history.json")
+            if not hist:
+                st.info(f"Chưa có {key}_history.json"); continue
+
+            n = len(hist["train_loss"])
+            ep = list(range(1, n+1))
+
+            col_l, col_r = st.columns(2, gap="medium")
+
+            # Loss chart
+            with col_l:
+                fig = go.Figure()
+                for key2, name, dash, color in [
+                    ("train_loss","Train","solid", mclr),
+                    ("val_loss",  "Validation","dash","#9CA3AF"),
+                ]:
+                    fig.add_trace(go.Scatter(
+                        x=ep, y=hist[key2], name=name,
+                        mode="lines+markers",
+                        line=dict(width=2, color=color, dash=dash),
+                        marker=dict(size=5, color=color),
+                        hovertemplate="Epoch %{x}: %{y:.4f}<extra>" + name + "</extra>",
+                    ))
+                fig.update_layout(
+                    title=dict(text="Loss", font=dict(size=12.5, color="#111827"),
+                               x=0, xanchor="left"),
+                    xaxis=dict(title="Epoch", showgrid=True, gridcolor="#F3F4F6",
+                               tickfont=dict(size=10), title_font=dict(size=10.5, color="#6B7280"),
+                               zeroline=False),
+                    yaxis=dict(showgrid=True, gridcolor="#F3F4F6",
+                               tickfont=dict(size=10),
+                               title_font=dict(size=10.5, color="#6B7280"), zeroline=False),
+                    paper_bgcolor="white", plot_bgcolor="white",
+                    height=280, margin=dict(l=45, r=15, t=45, b=40),
+                    legend=dict(font=dict(size=10), x=0.98, y=0.98,
+                                xanchor="right", yanchor="top",
+                                bgcolor="rgba(255,255,255,0.8)",
+                                bordercolor="#E5E7EB", borderwidth=1),
+                    hovermode="x unified",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+            # Accuracy chart
+            with col_r:
+                fig2 = go.Figure()
+                for key2, name, dash, color in [
+                    ("train_acc","Train","solid", mclr),
+                    ("val_acc",  "Validation","dash","#9CA3AF"),
+                ]:
+                    fig2.add_trace(go.Scatter(
+                        x=ep, y=hist[key2], name=name,
+                        mode="lines+markers",
+                        line=dict(width=2, color=color, dash=dash),
+                        marker=dict(size=5, color=color),
+                        hovertemplate="Epoch %{x}: %{y:.2%}<extra>" + name + "</extra>",
+                    ))
+                fig2.update_layout(
+                    title=dict(text="Accuracy", font=dict(size=12.5, color="#111827"),
+                               x=0, xanchor="left"),
+                    xaxis=dict(title="Epoch", showgrid=True, gridcolor="#F3F4F6",
+                               tickfont=dict(size=10), title_font=dict(size=10.5, color="#6B7280"),
+                               zeroline=False),
+                    yaxis=dict(tickformat=".0%", showgrid=True, gridcolor="#F3F4F6",
+                               tickfont=dict(size=10),
+                               title_font=dict(size=10.5, color="#6B7280"), zeroline=False),
+                    paper_bgcolor="white", plot_bgcolor="white",
+                    height=280, margin=dict(l=50, r=15, t=45, b=40),
+                    legend=dict(font=dict(size=10), x=0.02, y=0.98,
+                                xanchor="left", yanchor="top",
+                                bgcolor="rgba(255,255,255,0.8)",
+                                bordercolor="#E5E7EB", borderwidth=1),
+                    hovermode="x unified",
+                )
+                st.plotly_chart(fig2, use_container_width=True)
+
+            # Stats row
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Epochs", hist.get("best_epoch", n),
+                      f"/ {n} tổng" if hist.get("best_epoch") else "")
+            c2.metric("Best val loss", f"{min(hist['val_loss']):.4f}")
+            c3.metric("Test accuracy",
+                      f"{hist['test_acc']:.2%}" if "test_acc" in hist else "—")
+            c4.metric("Test F1",
+                      f"{hist['test_f1']:.2%}" if "test_f1" in hist else "—")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 4 — ABLATION STUDY
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "Ablation study":
+    st.markdown("## Ablation Study")
+    st.markdown(
+        "<p style='color:#6B7280;margin-top:-0.5rem;margin-bottom:1.5rem;font-size:0.9rem'>"
+        "Tắt từng thành phần để đo lường đóng góp thực sự của Bidirectionality và Attention.</p>",
+        unsafe_allow_html=True,
+    )
+
+    abl = read_json("outputs/logs/ablation_results.json")
+    if not abl:
+        st.warning("Chưa có dữ liệu"); st.stop()
+
+    vals = list(abl.values())
+    db   = vals[1]["accuracy"] - vals[0]["accuracy"]  # Bidirectional delta
+    da   = vals[2]["accuracy"] - vals[1]["accuracy"]  # Attention delta
+
+    # Contribution cards
+    c0, c1, c2 = st.columns(3, gap="medium")
+    for col, title, acc, delta, color in [
+        (c0, "LSTM (baseline)",      vals[0]["accuracy"], None,    "#6B7280"),
+        (c1, "+ Bidirectionality",   vals[1]["accuracy"], db,      "#059669" if db > 0 else "#DC2626"),
+        (c2, "+ Attention",          vals[2]["accuracy"], da,      "#059669" if da > 0.002 else "#D97706"),
+    ]:
+        col.markdown(
+            f"<div style='background:#fff;border:1px solid #E5E7EB;border-top:3px solid {color};"
+            f"border-radius:10px;padding:1.2rem;text-align:center'>"
+            f"<div style='font-size:1.6rem;font-weight:700;color:{color}'>{acc:.2%}</div>"
+            f"<div style='font-size:0.8rem;font-weight:600;color:#374151;margin:0.25rem 0 0.15rem'>"
+            f"{title}</div>"
+            f"<div style='font-size:0.78rem;color:#9CA3AF'>"
+            f"{'Δ ' + f'{delta:+.2%}' if delta is not None else 'Điểm khởi đầu'}</div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Grouped bar chart
+    names_a = [n.replace(" (proposed)","").replace(" (uni, no-attn)","") for n in abl]
+    accs_a  = [m["accuracy"] for m in vals]
+    f1s_a   = [m["f1"]       for m in vals]
+    bar_clr = ["#D1D5DB", "#93C5FD", "#2563EB"]
+
+    fig_a = go.Figure()
+    fig_a.add_trace(go.Bar(
+        name="Accuracy", x=names_a, y=accs_a, offsetgroup=0,
+        marker_color=bar_clr, text=[f"{v:.3f}" for v in accs_a],
+        textposition="outside", textfont=dict(size=10.5, color="#374151"),
+    ))
+    fig_a.add_trace(go.Bar(
+        name="F1 (weighted)", x=names_a, y=f1s_a, offsetgroup=1,
+        marker_color=[c + "80" for c in bar_clr],
+        text=[f"{v:.3f}" for v in f1s_a],
+        textposition="outside", textfont=dict(size=10.5, color="#374151"),
+    ))
+    fig_a.update_layout(
+        barmode="group",
+        yaxis=dict(
+            range=[min(accs_a+f1s_a) - 0.015, max(accs_a+f1s_a) + 0.025],
+            tickformat=".0%", showgrid=True, gridcolor="#F3F4F6",
+            tickfont=dict(size=10), zeroline=False,
+        ),
+        xaxis=dict(tickfont=dict(size=11), zeroline=False),
+        paper_bgcolor="white", plot_bgcolor="white",
+        height=340, margin=dict(l=55, r=20, t=20, b=40),
+        bargap=0.25, bargroupgap=0.06,
+        legend=dict(font=dict(size=11), bgcolor="white",
+                    bordercolor="#E5E7EB", borderwidth=1),
+    )
+    st.plotly_chart(fig_a, use_container_width=True)
+
+    # Detail table
+    st.markdown("<br>", unsafe_allow_html=True)
+    rows_t = ""
+    comps_t = [("❌","❌"), ("✅","❌"), ("✅","✅")]
+    for (name, m), (bi, att) in zip(abl.items(), comps_t):
+        star = " ★" if "Attention" in name else ""
+        c = "#2563EB" if "Attention" in name else ("#60A5FA" if "BiLSTM" in name else "#9CA3AF")
+        rows_t += (
+            f"<tr style='border-bottom:1px solid #F3F4F6'>"
+            f"<td style='padding:0.8rem 1rem'>"
+            f"<span style='background:{c}18;color:{c};padding:0.2rem 0.65rem;"
+            f"border-radius:99px;font-size:0.78rem;font-weight:600'>{name+star}</span></td>"
+            f"<td style='padding:0.8rem 1rem;text-align:center;font-size:1rem'>{bi}</td>"
+            f"<td style='padding:0.8rem 1rem;text-align:center;font-size:1rem'>{att}</td>"
+            f"<td style='padding:0.8rem 1rem;font-weight:600;color:#111827'>{m['accuracy']:.4f}</td>"
+            f"<td style='padding:0.8rem 1rem;color:#374151'>{m['f1']:.4f}</td>"
+            f"<td style='padding:0.8rem 1rem;color:#9CA3AF'>{m['num_params']:,}</td>"
+            f"</tr>"
+        )
+    th_style = "padding:0.65rem 1rem;text-align:left;color:#6B7280;font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1.5px solid #E5E7EB;"
+    st.markdown(
+        f"<div style='background:#fff;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden'>"
+        f"<table style='width:100%;border-collapse:collapse;font-size:0.875rem'>"
+        f"<thead style='background:#F9FAFB'><tr>"
+        f"<th style='{th_style}'>Biến thể</th>"
+        f"<th style='{th_style};text-align:center'>Bidirectional</th>"
+        f"<th style='{th_style};text-align:center'>Attention</th>"
+        f"<th style='{th_style}'>Accuracy</th>"
+        f"<th style='{th_style}'>F1</th>"
+        f"<th style='{th_style}'>Params</th>"
+        f"</tr></thead><tbody>{rows_t}</tbody></table></div>",
+        unsafe_allow_html=True,
+    )
+
+    # Insight
+    st.markdown("<br>", unsafe_allow_html=True)
+    insight_body = (
+        f"Bidirectionality cải thiện **{db:+.2%}** accuracy bằng cách mã hoá ngữ cảnh "
+        f"hai chiều — mỗi token nhận thông tin từ cả trái lẫn phải. "
+    )
+    if abs(da) < 0.005:
+        insight_body += (
+            f"Attention cho đóng góp nhỏ ({da:+.2%}) trên tập dữ liệu ngắn này, "
+            f"nhưng vẫn mang lại **khả năng giải thích** khi trực quan hoá trọng số."
+        )
+    else:
+        insight_body += f"Attention tiếp tục cải thiện thêm **{da:+.2%}**."
+
+    st.info("💡 " + insight_body)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 5 — KIẾN TRÚC
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "Kiến trúc mô hình":
+    st.markdown("## Kiến trúc mô hình")
+    st.markdown(
+        "<p style='color:#6B7280;margin-top:-0.5rem;margin-bottom:1.5rem;font-size:0.9rem'>"
+        "Chi tiết 3 mô hình: Baseline → Proposed → State-of-the-art comparison.</p>",
+        unsafe_allow_html=True,
+    )
+
+    t1, t2, t3 = st.tabs(["BiLSTM + Attention ★", "DNN + TF-IDF", "XLM-RoBERTa"])
+
+    with t1:
+        st.markdown("""
+**Mô hình đề xuất** — phù hợp với đặc trưng văn bản ngắn, ít tài nguyên.
+
+| Thành phần | Chi tiết |
+|---|---|
+| Embedding | vocab × 128d, padding_idx=0 |
+| Encoder | BiLSTM · 2 layers · hidden=256 · dropout=0.3 |
+| Attention | Bahdanau additive · score = v·tanh(W·h) |
+| Classifier | Linear 512→256 → LayerNorm → GELU → Dropout → Linear 256→7 |
+| Tham số | **2.919.047** |
+| Huấn luyện | AdamW · lr=1e-3 · CosineAnnealing · patience=5 |
+""")
+        st.code("""
+Input: [t₁, t₂, …, tₙ]           # token indices
+    │
+Embedding(vocab, 128) + Dropout(0.3)
+    │  shape: (B, L, 128)
+    │
+BiLSTM(128 → 256, num_layers=2)
+    │  Forward : h₁→ h₂→ … hₙ→
+    │  Backward: hₙ← … h₂← h₁←
+    │  Output  : [hᵢ→ ‖ hᵢ←]   shape: (B, L, 512)
+    │
+Attention (Bahdanau)
+    │  eᵢ = v · tanh(W · hᵢ)    score
+    │  αᵢ = softmax(e)            weight
+    │  c  = Σ αᵢ · hᵢ            context  (B, 512)
+    │
+Linear(512→256) → LayerNorm → GELU → Dropout(0.3)
+    │
+Linear(256→7)   →  logits  →  CrossEntropyLoss
+""", language="text")
+
+    with t2:
+        st.markdown("""
+**Baseline** — biểu diễn thống kê, không nắm thứ tự từ.
+
+| Thành phần | Chi tiết |
+|---|---|
+| Vectoriser | TF-IDF · 10.868 features · bigram · sublinear_tf |
+| Layer 1 | Linear(10868→512) → BN → ReLU → Dropout(0.3) |
+| Layer 2 | Linear(512→256) → BN → ReLU → Dropout(0.3) |
+| Layer 3 | Linear(256→128) → BN → ReLU → Dropout(0.3) |
+| Output | Linear(128→7) |
+| Tham số | **5.731.847** |
+| Huấn luyện | AdamW · lr=1e-3 · CosineAnnealing · patience=5 |
+""")
+
+    with t3:
+        st.markdown("""
+**Upper-bound** — mô hình Transformer đa ngôn ngữ pre-trained.
+
+| Thành phần | Chi tiết |
+|---|---|
+| Backbone | `xlm-roberta-base` · 12 layers · hidden=768 |
+| Head | Dropout(0.1) → Linear(768→7) |
+| Tham số | **278.049.031** |
+| Fine-tuning | AdamW · lr=2e-5 · warmup 10% · patience=5 |
+""")
+        st.info(
+            "XLM-RoBERTa được pre-train trên 2.5TB văn bản đa ngôn ngữ, "
+            "bao gồm tiếng Việt. Đây là **upper bound** — cho thấy giới hạn trên "
+            "của bài toán với dữ liệu hiện có."
+        )
