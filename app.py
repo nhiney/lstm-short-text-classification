@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
+from streamlit_option_menu import option_menu
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -21,7 +22,7 @@ st.set_page_config(
     page_title="ViLSTM Emotion — Vietnamese NLP",
     page_icon="🧠",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # ── Design tokens ─────────────────────────────────────────────────────────────
@@ -60,25 +61,18 @@ html, body, .stApp, [class*="css"] {{
 }}
 
 #MainMenu, footer, header {{ visibility: hidden; }}
-.block-container {{ padding: 1.5rem 2rem 4rem !important; max-width: 1120px; }}
+[data-testid="stSidebar"], [data-testid="collapsedControl"] {{ display: none !important; }}
+.block-container {{ padding: 1.25rem 2rem 4rem !important; max-width: 1120px; }}
 
-/* ── Sidebar ── */
-[data-testid="stSidebar"] {{
-    background: linear-gradient(180deg, #1E1B4B 0%, #0F172A 100%) !important;
-    border-right: none !important;
+/* ── Top brand bar ── */
+.topbar {{ display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1rem; }}
+.topbar .logo {{
+    width: 40px; height: 40px; border-radius: 12px; background: {GRAD};
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.35rem; box-shadow: 0 4px 14px rgba(99,102,241,0.4);
 }}
-[data-testid="stSidebar"] * {{ font-family: 'Plus Jakarta Sans', sans-serif !important; }}
-[data-testid="stSidebar"] .stRadio > div {{ gap: 3px !important; }}
-[data-testid="stSidebar"] .stRadio label {{
-    color: #A5B4FC !important;
-    font-size: 0.875rem !important; font-weight: 500 !important;
-    padding: 0.6rem 0.9rem !important; border-radius: 9px !important;
-    transition: all 0.18s ease !important; cursor: pointer !important;
-}}
-[data-testid="stSidebar"] .stRadio label:hover {{
-    background: rgba(255,255,255,0.08) !important; color: #fff !important;
-}}
-[data-testid="stSidebar"] hr {{ border-color: rgba(255,255,255,0.08) !important; }}
+.topbar .brand {{ font-size: 1.1rem; font-weight: 800; color: {INK}; line-height: 1.1; }}
+.topbar .tag   {{ font-size: 0.72rem; font-weight: 600; color: {PRIMARY}; }}
 
 /* ── Buttons ── */
 .stButton > button {{
@@ -196,47 +190,58 @@ def metric_pill(value, label, color=PRIMARY, sub=""):
     )
 
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown(f"""
-    <div style='padding:0.5rem 0 1.5rem'>
-      <div style='display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem'>
-        <div style='width:38px;height:38px;border-radius:11px;background:{GRAD};
-                    display:flex;align-items:center;justify-content:center;
-                    font-size:1.3rem;box-shadow:0 4px 12px rgba(99,102,241,0.4)'>🧠</div>
-        <div>
-          <div style='color:#fff;font-size:1.05rem;font-weight:800;line-height:1.1'>ViLSTM Emotion</div>
-          <div style='color:#818CF8;font-size:0.7rem;font-weight:500'>Vietnamese NLP</div>
-        </div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+# ── Top brand bar ─────────────────────────────────────────────────────────────
+st.markdown(f"""
+<div class='topbar'>
+  <div class='logo'>🧠</div>
+  <div>
+    <div class='brand'>ViLSTM Emotion</div>
+    <div class='tag'>Vietnamese Short-Text Emotion Classification</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
-    page = st.radio("nav", [
-        "Tổng quan",
-        "Demo trực tiếp",
-        "Kết quả & Metrics",
-        "Training curves",
-        "Ablation study",
-        "Kiến trúc mô hình",
-    ], label_visibility="collapsed")
+# ── Horizontal navigation ─────────────────────────────────────────────────────
+NAV_ITEMS = [
+    "Tổng quan", "Demo trực tiếp", "Kết quả & Metrics",
+    "Training curves", "Ablation study", "Kiến trúc mô hình",
+]
+NAV_ICONS = ["house", "magic", "bar-chart", "graph-up", "diagram-3", "cpu"]
 
-    st.divider()
-    st.markdown(f"""
-    <div style='font-size:0.78rem;color:#94A3B8;line-height:1.85'>
-      <div style='color:#818CF8;font-size:0.68rem;font-weight:700;
-                  letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.4rem'>
-        Bộ dữ liệu
-      </div>
-      2.726 bình luận mạng xã hội<br>
-      7 nhãn cảm xúc (Ekman)<br>
-      Split 70 / 15 / 15
-    </div>
-    <div style='margin-top:1.25rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.08);
-                font-size:0.72rem;color:#475569'>
-      Đồ án · Deep Learning NLP<br>BiLSTM · DNN · XLM-RoBERTa
-    </div>
-    """, unsafe_allow_html=True)
+page = option_menu(
+    menu_title=None,
+    options=NAV_ITEMS,
+    icons=NAV_ICONS,
+    orientation="horizontal",
+    default_index=0,
+    styles={
+        "container": {
+            "padding": "4px",
+            "background-color": "#FFFFFF",
+            "border": "1px solid #E2E8F0",
+            "border-radius": "14px",
+            "box-shadow": "0 1px 3px rgba(15,23,42,0.04)",
+            "margin-bottom": "1.5rem",
+        },
+        "icon": {"font-size": "0.92rem"},
+        "nav-link": {
+            "font-family": "'Plus Jakarta Sans', sans-serif",
+            "font-size": "0.84rem",
+            "font-weight": "600",
+            "color": "#64748B",
+            "padding": "0.5rem 0.9rem",
+            "border-radius": "10px",
+            "margin": "0 2px",
+            "--hover-color": "#F1F5F9",
+        },
+        "nav-link-selected": {
+            "background": "linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)",
+            "color": "#FFFFFF",
+            "font-weight": "700",
+            "box-shadow": "0 2px 8px rgba(99,102,241,0.3)",
+        },
+    },
+)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

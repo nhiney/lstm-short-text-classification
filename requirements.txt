@@ -38,6 +38,11 @@ emoji>=2.12.0        # emoji pattern matching in social features
 # ── Progress bars ────────────────────────────────────────────
 tqdm>=4.66.0
 
+# ── Demo web app ─────────────────────────────────────────────
+streamlit>=1.38.0
+streamlit-option-menu>=0.3.13
+plotly>=5.23.0
+
 # ── Optional: Jupyter notebook ───────────────────────────────
 jupyter>=1.0.0
 ipykernel>=6.29.0
